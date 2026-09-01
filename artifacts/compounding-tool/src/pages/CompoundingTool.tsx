@@ -191,6 +191,7 @@ interface DecadeInputProps {
   label: string;
   value: number;
   onChange: (v: number) => void;
+  onSyncChange?: (delta: number) => void;
   step?: number;
   color: string;
 }
@@ -220,13 +221,25 @@ function YAxisTick({ x, y, payload }: { x: number; y: number; payload: { value: 
   );
 }
 
-function DecadeInput({ label, value, onChange, step = 100, color }: DecadeInputProps) {
+function DecadeInput({ label, value, onChange, onSyncChange, step = 100, color }: DecadeInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
 
-  const increment = () => onChange(value + step);
-  const decrement = () => onChange(Math.max(0, value - step));
+  const increment = (event?: React.MouseEvent<HTMLButtonElement>) => {
+    if (event?.ctrlKey && onSyncChange) {
+      onSyncChange(step);
+      return;
+    }
+    onChange(value + step);
+  };
+  const decrement = (event?: React.MouseEvent<HTMLButtonElement>) => {
+    if (event?.ctrlKey && onSyncChange) {
+      onSyncChange(-step);
+      return;
+    }
+    onChange(Math.max(0, value - step));
+  };
 
   const commit = (raw: string) => {
     const n = parseFloat(raw);
@@ -488,10 +501,36 @@ export default function CompoundingTool() {
 
   const displayIdx = hoveredDataIndex ?? YEARS;
   const displayAge = STARTING_AGE + displayIdx;
-  const finalBlue = blueData[displayIdx];
+  const activeSummaryData = showBlue ? blueData : showBlack ? blackData : pinkData;
+  const activeSummaryValue = activeSummaryData[displayIdx];
+  const activeSummaryLabel = showBlue
+    ? "your compounded + additions value"
+    : showBlack
+      ? "your compounding-only value"
+      : "your savings-only value";
+  const summaryColors = showBlue
+    ? {
+        background: "bg-blue-50",
+        label: "text-blue-600",
+        value: "text-blue-700",
+        detail: "text-blue-500",
+      }
+    : showBlack
+      ? {
+          background: "bg-gray-100",
+          label: "text-gray-600",
+          value: "text-gray-700",
+          detail: "text-gray-500",
+        }
+      : {
+          background: "bg-pink-50",
+          label: "text-pink-600",
+          value: "text-pink-700",
+          detail: "text-pink-500",
+        };
   const pinkAtDisplay = pinkData[displayIdx];
-  const percentDiff = pinkAtDisplay > 0
-    ? Math.round((finalBlue / pinkAtDisplay) * 100)
+  const percentDifference = pinkAtDisplay > 0
+    ? Math.round(((activeSummaryValue - pinkAtDisplay) / pinkAtDisplay) * 100)
     : null;
 
   const dataMax = Math.max(
@@ -529,6 +568,15 @@ export default function CompoundingTool() {
     },
     []
   );
+  const updateAllContribs = useCallback((delta: number) => {
+    setContributions((prev) => ({
+      "10s": Math.max(0, prev["10s"] + delta),
+      "20s": Math.max(0, prev["20s"] + delta),
+      "30s": Math.max(0, prev["30s"] + delta),
+      "40s": Math.max(0, prev["40s"] + delta),
+      "50s": Math.max(0, prev["50s"] + delta),
+    }));
+  }, []);
 
   const decadeConfigs: Array<{
     key: keyof ContributionsByDecade;
@@ -953,6 +1001,7 @@ export default function CompoundingTool() {
                       label={label}
                       value={contributions[key]}
                       onChange={updateContrib(key)}
+                      onSyncChange={updateAllContribs}
                       step={step}
                       color={BLUE}
                     />
@@ -998,18 +1047,20 @@ export default function CompoundingTool() {
                   </p>
                 </div>
 
-                {/* Blue — Return at age */}
-                <div className="flex-1 bg-blue-50 rounded-2xl py-2 px-4 text-center flex flex-col justify-center">
-                  <p data-testid="chart-facing-age" className="text-xs text-blue-600 mb-0.5 leading-snug">
-                    Age {displayAge} your compounded value is
+                {/* Active mode — Return at age */}
+                <div className={`flex-1 ${summaryColors.background} rounded-2xl py-2 px-4 text-center flex flex-col justify-center`}>
+                  <p data-testid="chart-facing-age" className={`text-xs ${summaryColors.label} mb-0.5 leading-snug`}>
+                    Age {displayAge} {activeSummaryLabel} is
                   </p>
-                  <p data-testid="summary-return-percentage" className="text-base font-bold text-blue-700">
-                    {percentDiff !== null
-                      ? `${percentDiff.toLocaleString()}%`
-                      : formatMoney(Math.round(finalBlue / 100) * 100)}
+                  <p data-testid="summary-return-percentage" className={`text-base font-bold ${summaryColors.value}`}>
+                    {percentDifference !== null
+                      ? `${Math.abs(percentDifference).toLocaleString()}%`
+                      : formatMoney(Math.round(activeSummaryValue / 100) * 100)}
                   </p>
-                  {percentDiff !== null && (
-                    <p className="text-xs text-blue-500 mt-0.5 leading-snug">larger than savings alone</p>
+                  {percentDifference !== null && (
+                    <p className={`text-xs ${summaryColors.detail} mt-0.5 leading-snug`}>
+                      {percentDifference < 0 ? "less" : "larger"} than savings alone
+                    </p>
                   )}
                 </div>
 
