@@ -110,6 +110,17 @@ function formatCurveDeltaMoney(value: number) {
   return `$${Math.round(absoluteValue).toLocaleString()}`;
 }
 
+function HeaderHint({ label, hint }: { label: string; hint: string }) {
+  return (
+    <span className="relative group text-[11px] text-gray-400 font-semibold uppercase cursor-help transition-colors duration-150 group-hover:text-gray-900 hover:text-gray-900">
+      {label}
+      <span className="pointer-events-none absolute left-0 top-full z-50 mt-1.5 block w-72 rounded-xl border border-gray-100 bg-white px-4 py-3 normal-case font-normal tracking-normal text-[13px] leading-snug text-gray-700 shadow-lg opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
+        {hint}
+      </span>
+    </span>
+  );
+}
+
 const EXPLANATIONS: Record<string, string> = {
   blue:
     "Compounding supercharged with yearly additions. Notice how much larger this is — that's the power of investing more money into the system each year.",
@@ -1183,8 +1194,14 @@ export default function CompoundingTool() {
                 <div key={colIdx} data-testid={`growth-column-${colIdx === 0 ? "first" : "second"}`}>
                   <div className={`grid grid-cols-[32px_80px_80px_1fr] gap-2 pb-1 mb-1 border-b border-gray-100 ${colIdx === 1 ? "hidden lg:grid growth-col-header-2" : ""}`}>
                     <span className="text-[11px] text-gray-400 font-semibold uppercase">Age</span>
-                    <span className="text-[11px] text-gray-400 font-semibold uppercase">Yearly Int.</span>
-                    <span className="text-[11px] text-gray-400 font-semibold uppercase">Money</span>
+                    <HeaderHint
+                      label="Yearly Int."
+                      hint="The money you get for that year from interest paid to you for your investment"
+                    />
+                    <HeaderHint
+                      label="Money"
+                      hint="The total amount of money you now own from all your years of investing"
+                    />
                     <div className="flex items-center gap-1">
                       <span className="text-[11px] text-gray-400 font-semibold uppercase flex-1">Growth Over Time</span>
                       <span className="text-[11px] text-gray-400 font-semibold w-20 text-right">% Growth</span>
