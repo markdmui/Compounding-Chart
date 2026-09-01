@@ -721,8 +721,17 @@ export default function CompoundingTool() {
                     if (activeIndex === undefined || activeIndex === null) return;
                     const nextIndex = Number(activeIndex);
                     setChartHoveredIndex((current) => current === nextIndex ? current : nextIndex);
+                     setAxisHoveredIndex((current) => current === nextIndex ? current : nextIndex);
                   }}
-                  onMouseLeave={() => setChartHoveredIndex(null)}
+                   onMouseLeave={() => {
+                     setChartHoveredIndex(null);
+                     setAxisHoveredIndex(null);
+                   }}
+                   onClick={(state: any) => {
+                     const activeIndex = state?.activeTooltipIndex;
+                     if (activeIndex === undefined || activeIndex === null) return;
+                     handleAgeChange(Number(activeIndex));
+                   }}
                 >
                   <CartesianGrid strokeDasharray="4 4" stroke="#f0f0f0" vertical={true} />
                   <XAxis
