@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import { CompoundingExplainer } from "@/components/CompoundingExplainer";
+import { QuizMode } from "@/components/QuizMode";
 
 const YEARS = 50;
 const STARTING_AGE = 10;
@@ -328,6 +329,7 @@ const RESET_SETTINGS = {
 export default function CompoundingTool() {
   const [initialInvestment, setInitialInvestment] = useState(DEFAULTS.initialInvestment);
   const [explainerOpen, setExplainerOpen] = useState(true);
+  const [quizOpen, setQuizOpen] = useState(false);
   const [lessonsSummaryOpen, setLessonsSummaryOpen] = useState(true);
   const [growthTableOpen, setGrowthTableOpen] = useState(true);
   const [annualRate, setAnnualRate] = useState(DEFAULTS.annualRate);
@@ -345,11 +347,19 @@ export default function CompoundingTool() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartScaleRef = useRef<{ xScale: (v: any) => number; yScale: (v: any) => number } | null>(null);
   const handleExplainerClose = useCallback(() => setExplainerOpen(false), []);
+  // Quiz Mode takes over the screen: close anything else that is open first.
+  const handleQuizOpen = useCallback(() => {
+    setExplainerOpen(false);
+    setQuizOpen(true);
+  }, []);
+  const handleQuizClose = useCallback(() => setQuizOpen(false), []);
   const handleAgeChange = useCallback((index: number) => {
     setHoveredDataIndex(Math.min(YEARS, Math.max(0, index)));
   }, []);
 
   useEffect(() => {
+    if (quizOpen) return;
+
     const handleExplainerShortcut = (event: KeyboardEvent) => {
       if (
         event.key.toLowerCase() !== "f" ||
@@ -377,10 +387,10 @@ export default function CompoundingTool() {
 
     window.addEventListener("keydown", handleExplainerShortcut);
     return () => window.removeEventListener("keydown", handleExplainerShortcut);
-  }, []);
+  }, [quizOpen]);
 
   useEffect(() => {
-    if (explainerOpen) return;
+    if (explainerOpen || quizOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
@@ -390,7 +400,7 @@ export default function CompoundingTool() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [explainerOpen, handleAgeChange, hoveredDataIndex]);
+  }, [explainerOpen, quizOpen, handleAgeChange, hoveredDataIndex]);
 
   useEffect(() => {
     const handleSettingsShortcut = (event: KeyboardEvent) => {
@@ -424,6 +434,8 @@ export default function CompoundingTool() {
   // Keyboard shortcuts: 1 toggles Savings, 2 toggles Compounding,
   // 3 toggles Compounding+Yearly Inv.
   useEffect(() => {
+    if (quizOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
@@ -448,7 +460,7 @@ export default function CompoundingTool() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [quizOpen]);
 
   const blueData = calculateGrowthWithContributions(
     initialInvestment,
@@ -589,7 +601,15 @@ export default function CompoundingTool() {
     <div className="min-h-screen bg-white p-4 md:p-5">
       <div className="w-full px-[50px]">
         {/* Header */}
-        <div className="mb-4 md:mb-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+        <div className="relative mb-4 md:mb-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+          <button
+            type="button"
+            onClick={handleQuizOpen}
+            aria-haspopup="dialog"
+            className="absolute right-0 top-0 text-sm text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
+          >
+            Quiz Mode
+          </button>
           <span className="text-lg md:text-xl text-gray-900">
             Power of Compounding
           </span>
@@ -1340,6 +1360,12 @@ export default function CompoundingTool() {
         showBlue={showBlue}
         onAgeChange={handleAgeChange}
         onClose={handleExplainerClose}
+      />
+      <QuizMode
+        open={quizOpen}
+        principal={initialInvestment}
+        annualRate={annualRate}
+        onClose={handleQuizClose}
       />
     </div>
   );
