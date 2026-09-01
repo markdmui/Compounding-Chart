@@ -410,6 +410,35 @@ export default function CompoundingTool() {
     }
   }, [hasContributions]);
 
+  // Keyboard shortcuts: 1 toggles Savings, 2 toggles Compounding,
+  // 3 toggles Compounding+Yearly Inv.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === "1") setShowSavings((prev) => !prev);
+      else if (e.key === "2") setShowBlack((prev) => !prev);
+      else if (e.key === "3") setShowBlue((prev) => !prev);
+      else return;
+
+      e.preventDefault();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const blueData = calculateGrowthWithContributions(
     initialInvestment,
     rate,
@@ -493,10 +522,10 @@ export default function CompoundingTool() {
   const renderCustomLegend = () => {
     const items = [
       {
-        key: "blue",
-        color: BLUE,
-        label: `$${initialInvestment.toLocaleString()}+ Yearly Additions`,
-        always: true,
+        key: "pink",
+        color: PINK,
+        label: `Savings-Only (no compounding)`,
+        always: showSavings,
       },
       {
         key: "black",
@@ -505,10 +534,10 @@ export default function CompoundingTool() {
         always: hasContributions,
       },
       {
-        key: "pink",
-        color: PINK,
-        label: `Savings-Only (no compounding)`,
-        always: showSavings,
+        key: "blue",
+        color: BLUE,
+        label: `$${initialInvestment.toLocaleString()}+ Yearly Additions`,
+        always: true,
       },
     ].filter((i) => i.always);
 
@@ -546,7 +575,7 @@ export default function CompoundingTool() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 p-4 md:p-5">
+    <div className="min-h-screen bg-white p-4 md:p-5">
       <div className="w-full px-[50px]">
         {/* Header */}
         <div className="mb-4 md:mb-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
@@ -577,7 +606,7 @@ export default function CompoundingTool() {
         </div>
 
         {/* Main Card */}
-        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="bg-white overflow-hidden">
 
           {/* 3xl side-by-side wrapper: left=chart+controls, right=growth table */}
           <div className="side-by-side-wrapper">
@@ -1070,7 +1099,7 @@ export default function CompoundingTool() {
                         >
                           What is compounding?
                         </button>{" "}
-                        Compounding is a type of growth. The shape of this growth looks like a hockey stick compared to a linear straight line growth.
+                        Compounding is a type of growth. What is growth? Growth is change across time. The shape of compounded growth looks like a hockey stick vs. linear growth which looks like a straight line.
                       </>,
                       "Compounding is when something grows. That growth gets put back into itself and grows again the next year, this repeats forever so that the growth itself grows faster and larger the longer you compound.",
                       "Start as early as possible, time turns small savings into fortunes",
