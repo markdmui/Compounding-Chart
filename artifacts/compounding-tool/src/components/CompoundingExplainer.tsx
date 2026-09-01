@@ -352,7 +352,7 @@ export function CompoundingExplainer({
           transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
           fontFamily: "inherit",
         }}
-        className="pointer-events-auto relative max-h-[94vh] w-[calc(100%+10px)] max-w-[calc(51.84rem+10px)] overflow-y-auto border border-slate-200 bg-white p-[10px] shadow-2xl outline-none md:w-[calc(72%+10px)]"
+        className="pointer-events-auto relative max-h-[94vh] w-[calc(90%+9px)] max-w-[calc(46.656rem+9px)] overflow-y-auto border border-slate-200 bg-white p-[10px] shadow-2xl outline-none md:w-[calc(64.8%+9px)]"
       >
         <div
           aria-hidden="true"
@@ -489,7 +489,7 @@ export function CompoundingExplainer({
             <article className="flex min-h-[380px] flex-col border-t-2 border-pink-500 bg-pink-50/50 p-5">
               <div className="flex min-h-6 flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center">
-                  <h3 className="font-normal text-pink-900">Linear growth</h3>
+                  <h3 className="text-sm font-normal text-pink-900 md:whitespace-nowrap">Linear growth</h3>
                 </div>
               </div>
               <p className="mt-2 text-[13px] leading-[1.15rem] text-pink-900/60">
@@ -542,7 +542,7 @@ export function CompoundingExplainer({
             <article className="flex min-h-[380px] flex-col border-t-2 border-gray-400 bg-gray-100 p-5">
               <div className="flex min-h-6 flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center">
-                  <h3 className="font-normal text-gray-800">Compounding only</h3>
+                  <h3 className="text-sm font-normal text-gray-800 md:whitespace-nowrap">Compounding only</h3>
                 </div>
               </div>
               <p className="mt-2 text-[13px] leading-[1.15rem] text-gray-700/70">
@@ -596,7 +596,7 @@ export function CompoundingExplainer({
             <article className="flex min-h-[380px] flex-col border-t-2 border-blue-500 bg-blue-50/50 p-5">
               <div className="flex min-h-6 flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center">
-                  <h3 className="font-normal text-blue-900">Compounding + yearly Inv.</h3>
+                  <h3 className="text-sm font-normal text-blue-900 md:whitespace-nowrap">Compounding + yearly Inv.</h3>
                 </div>
               </div>
               <p className="mt-2 text-[13px] leading-[1.15rem] text-blue-900/60">

@@ -23,6 +23,10 @@
   *:focus,
   *:focus-visible {
     outline: none !important;
+  }
+
+  :where(button, a, input, select, textarea, [role="button"]):focus,
+  :where(button, a, input, select, textarea, [role="button"]):focus-visible {
     box-shadow: none !important;
   }
 }
