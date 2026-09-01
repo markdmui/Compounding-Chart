@@ -18,6 +18,7 @@ const STARTING_AGE = 10;
 
 const BLUE = "#3b82f6";
 const BLACK = "#374151";
+const BLACK_BAR = "#6b7280";
 const PINK = "#f472b6";
 
 interface ContributionsByDecade {
@@ -1174,7 +1175,7 @@ export default function CompoundingTool() {
                         ? { data: pinkData, lightColor: "#fce7f3", activeColor: PINK }
                         : null,
                       showBlack
-                        ? { data: blackData, lightColor: "#d1d5db", activeColor: BLACK }
+                        ? { data: blackData, lightColor: "#d1d5db", activeColor: BLACK_BAR }
                         : null,
                       showBlue
                         ? { data: blueData, lightColor: "#b2d8fe", activeColor: "#00d3ff" }
