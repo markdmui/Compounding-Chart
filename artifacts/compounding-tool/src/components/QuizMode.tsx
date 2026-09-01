@@ -63,7 +63,7 @@ function buildQuestions(principal: number, annualRate: number): QuizQuestion[] {
   {
     question: "What does interest mean on this chart?",
     choices: [
-      "Money you are paid for letting your money stay invested",
+      "Money your investment earns while it stays invested",
       "How much you like investing",
       "A fee you have to pay every year",
       "The money you put in yourself",
@@ -201,6 +201,7 @@ export function QuizMode({ open, principal, annualRate, onClose }: QuizModeProps
   } | null>(null);
 
   const [deck, setDeck] = useState<QuizQuestion[]>([]);
+  const deckLengthRef = useRef(0);
   const [step, setStep] = useState(0);
   const [wrongPicks, setWrongPicks] = useState<number[]>([]);
   const [solved, setSolved] = useState(false);
@@ -208,7 +209,9 @@ export function QuizMode({ open, principal, annualRate, onClose }: QuizModeProps
   const [finished, setFinished] = useState(false);
 
   const restart = () => {
-    setDeck(buildDeck(principal, annualRate));
+    const nextDeck = buildDeck(principal, annualRate);
+    deckLengthRef.current = nextDeck.length;
+    setDeck(nextDeck);
     setStep(0);
     setWrongPicks([]);
     setSolved(false);
@@ -224,6 +227,27 @@ export function QuizMode({ open, principal, annualRate, onClose }: QuizModeProps
     const previousFocus = document.activeElement as HTMLElement | null;
     const focusTimer = window.setTimeout(() => dialogRef.current?.focus(), 0);
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        (event.key === "ArrowLeft" || event.key === "ArrowRight")
+      ) {
+        event.preventDefault();
+        const delta = event.key === "ArrowRight" ? 1 : -1;
+        setStep((currentStep) =>
+          Math.min(
+            Math.max(currentStep + delta, 0),
+            Math.max(0, deckLengthRef.current - 1),
+          ),
+        );
+        setWrongPicks([]);
+        setSolved(false);
+        setFinished(false);
+        return;
+      }
+
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
