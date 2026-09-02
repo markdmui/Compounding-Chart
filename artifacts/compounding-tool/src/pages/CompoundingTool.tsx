@@ -21,6 +21,15 @@ const BLUE = "#3b82f6";
 const BLACK = "#374151";
 const BLACK_BAR = "#6b7280";
 const PINK = "#f472b6";
+const VALUE_HIGHLIGHT = "#ffff99";
+const DOT_HIGHLIGHT = "#d1d5db";
+type ValueSeries = "pink" | "black" | "blue";
+type GrowthBarSeries = {
+  key: ValueSeries;
+  data: number[];
+  lightColor: string;
+  activeColor: string;
+};
 
 interface ContributionsByDecade {
   "10s": number;
@@ -77,11 +86,12 @@ function calculateLinear(initial: number, contributions: ContributionsByDecade, 
 }
 
 function formatMoney(value: number) {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000_000) return `$${(Math.floor(value / 100_000) / 10).toFixed(1)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
   return `$${Math.round(value).toLocaleString()}`;
 }
 
+// Simple rounding keeps the first digit after the unit decimal and discards the rest.
 function formatCurveMoney(value: number) {
   if (!Number.isFinite(value)) return "$0";
   if (value >= 1_000_000_000) {
@@ -100,13 +110,13 @@ function formatCurveDeltaMoney(value: number) {
   const absoluteValue = Math.abs(value);
   if (!Number.isFinite(absoluteValue)) return "$0";
   if (absoluteValue >= 1_000_000_000) {
-    return `$${(Math.round(absoluteValue / 100_000_000) / 10).toFixed(1)}B`;
+    return `$${(Math.floor(absoluteValue / 100_000_000) / 10).toFixed(1)}B`;
   }
   if (absoluteValue >= 1_000_000) {
-    return `$${(Math.round(absoluteValue / 100_000) / 10).toFixed(1)}M`;
+    return `$${(Math.floor(absoluteValue / 100_000) / 10).toFixed(1)}M`;
   }
   if (absoluteValue >= 1_000) {
-    return `$${(Math.round(absoluteValue / 100) / 10).toFixed(1)}K`;
+    return `$${(Math.floor(absoluteValue / 100) / 10).toFixed(1)}K`;
   }
   return `$${Math.round(absoluteValue).toLocaleString()}`;
 }
@@ -124,7 +134,7 @@ function HeaderHint({ label, hint }: { label: string; hint: string }) {
 
 const EXPLANATIONS: Record<string, string> = {
   blue:
-    "Compounding supercharged with yearly additions. Notice how much larger this is — that's the power of investing more money into the system each year.",
+    "Compounding supercharged with yearly investments. Notice how much larger this is — that's the power of investing more money into the system each year.",
   black:
     "The black line shows your money compounding at the set interest rate with no extra additions. Each year, interest grows on top of prior growth — growth on top of growth.",
   pink:
@@ -355,10 +365,15 @@ export default function CompoundingTool() {
   const [chartHoveredIndex, setChartHoveredIndex] = useState<number | null>(null);
   const [barHoveredIdx, setBarHoveredIdx] = useState<number | null>(null);
   const [hoveredLegend, setHoveredLegend] = useState<string | null>(null);
+  const [hoveredValueSeries, setHoveredValueSeries] = useState<ValueSeries | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ left: number; top: number } | null>(null);
   const chartSectionRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartScaleRef = useRef<{ xScale: (v: any) => number; yScale: (v: any) => number } | null>(null);
+  const chartScaleRef = useRef<{
+    xScale: (v: any) => number;
+    yScale: (v: any) => number;
+    yMax: number;
+  } | null>(null);
   const handleExplainerClose = useCallback(() => setExplainerOpen(false), []);
   // Quiz Mode takes over the screen: close anything else that is open first.
   const handleQuizOpen = useCallback(() => {
@@ -369,6 +384,13 @@ export default function CompoundingTool() {
   const handleAgeChange = useCallback((index: number) => {
     setHoveredDataIndex(Math.min(YEARS, Math.max(0, index)));
   }, []);
+  const valueHoverHandlers = useCallback(
+    (series: ValueSeries) => ({
+      onMouseEnter: () => setHoveredValueSeries(series),
+      onMouseLeave: () => setHoveredValueSeries(null),
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (quizOpen) return;
@@ -406,9 +428,22 @@ export default function CompoundingTool() {
     if (explainerOpen || quizOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      if (
+        event.key !== "ArrowUp" &&
+        event.key !== "ArrowDown" &&
+        event.key !== "Home" &&
+        event.key !== "End"
+      ) {
+        return;
+      }
       event.preventDefault();
-      handleAgeChange(hoveredDataIndex + (event.key === "ArrowUp" ? 1 : -1));
+      if (event.key === "Home") {
+        handleAgeChange(YEARS);
+      } else if (event.key === "End") {
+        handleAgeChange(0);
+      } else {
+        handleAgeChange(hoveredDataIndex + (event.key === "ArrowUp" ? 1 : -1));
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -504,10 +539,10 @@ export default function CompoundingTool() {
   const activeSummaryData = showBlue ? blueData : showBlack ? blackData : pinkData;
   const activeSummaryValue = activeSummaryData[displayIdx];
   const activeSummaryLabel = showBlue
-    ? "your compounded + additions value"
+    ? <>your $ from<br />compounding+yearly investments</>
     : showBlack
-      ? "your compounding-only value"
-      : "your savings-only value";
+      ? <>your $ from<br />compounding only</>
+      : "your savings";
   const summaryColors = showBlue
     ? {
         background: "bg-blue-50",
@@ -529,7 +564,7 @@ export default function CompoundingTool() {
           detail: "text-pink-500",
         };
   const pinkAtDisplay = pinkData[displayIdx];
-  const percentDifference = pinkAtDisplay > 0
+  const percentDifference = !isSavingsOnly && pinkAtDisplay > 0
     ? Math.round(((activeSummaryValue - pinkAtDisplay) / pinkAtDisplay) * 100)
     : null;
 
@@ -607,7 +642,7 @@ export default function CompoundingTool() {
       {
         key: "blue",
         color: BLUE,
-        label: `$${initialInvestment.toLocaleString()}+ Yearly Additions`,
+        label: `$${initialInvestment.toLocaleString()}+ Yearly Investments`,
         always: true,
       },
     ].filter((i) => i.always);
@@ -671,7 +706,7 @@ export default function CompoundingTool() {
             inputClassName="w-16 text-gray-900 text-lg md:text-xl"
           />
           <span className="text-lg md:text-xl text-gray-900">
-            with Yearly Interest of
+            with Yearly Interest Rate of
           </span>
           <InlineNumberInput
             value={annualRate}
@@ -731,29 +766,46 @@ export default function CompoundingTool() {
                 const gap = 20;
                 let left: number;
                 let top: number;
-                const scales = chartScaleRef.current;
-                if (scales) {
+                 const containerWidth = chartContainerRef.current?.clientWidth ?? 600;
+                 const containerHeight = chartContainerRef.current?.clientHeight ?? 300;
+                 const scales =
+                   chartScaleRef.current?.yMax === yMax
+                     ? chartScaleRef.current
+                     : null;
+                 if (scales) {
                   const curveX = scales.xScale(row.age as string);
                   const curveY = showBlue
                     ? scales.yScale(blueData[idx])
                     : showBlack
                     ? scales.yScale(blackData[idx])
                     : scales.yScale(pinkData[idx]);
-                  left = curveX - gap - tooltipWidth;
-                  top = curveY - gap - tooltipEstHeight;
-                  if (left < 4) left = curveX + gap;
-                  if (top < 4) top = curveY + gap;
+                   if (Number.isFinite(curveX) && Number.isFinite(curveY)) {
+                     left = curveX - gap - tooltipWidth;
+                     top = curveY - gap - tooltipEstHeight;
+                     if (left < 4) left = curveX + gap;
+                     if (top < 4) top = curveY + gap;
+                   } else {
+                     left = 4;
+                     top = 12;
+                   }
                 } else {
-                  const containerWidth = chartContainerRef.current?.clientWidth ?? 600;
                   const plotLeft = 54;
                   const plotWidth = Math.max(100, containerWidth - plotLeft - 24);
                   const xPixel = plotLeft + (idx / YEARS) * plotWidth;
                   left = Math.max(4, xPixel - gap - tooltipWidth);
                   top = 12;
                 }
+                 left = Math.min(
+                   Math.max(4, left),
+                   Math.max(4, containerWidth - tooltipWidth - 4),
+                 );
+                 top = Math.min(
+                   Math.max(4, top),
+                   Math.max(4, containerHeight - tooltipEstHeight - 4),
+                 );
                 return (
                   <div
-                    className="absolute z-20 pointer-events-none bg-white/95 backdrop-blur border border-gray-200 rounded-xl shadow-xl p-4"
+                    className="absolute z-20 pointer-events-auto bg-white/95 backdrop-blur border border-gray-200 rounded-xl shadow-xl p-4"
                     style={{ left, top, minWidth: tooltipWidth }}
                   >
                     <p data-testid="chart-tooltip-age" className="text-xs font-semibold text-gray-500 mb-2">
@@ -762,19 +814,37 @@ export default function CompoundingTool() {
                     {showBlue && (
                       <div className="flex items-center gap-2 mb-1">
                         <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
-                        <span className="font-bold text-sm" style={{ color: BLUE }}>{formatCurveMoney(blueVal)}</span>
+                        <span
+                          className="font-bold text-sm"
+                          style={{ color: BLUE, backgroundColor: hoveredValueSeries === "blue" ? VALUE_HIGHLIGHT : undefined }}
+                          {...valueHoverHandlers("blue")}
+                        >
+                          {formatCurveMoney(blueVal)}
+                        </span>
                       </div>
                     )}
                     {showBlack && (
                       <div className="flex items-center gap-2 mb-1">
                         <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
-                        <span className="font-bold text-sm" style={{ color: BLACK }}>{formatCurveMoney(blackVal)}</span>
+                        <span
+                          className="font-bold text-sm"
+                          style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
+                          {...valueHoverHandlers("black")}
+                        >
+                          {formatCurveMoney(blackVal)}
+                        </span>
                       </div>
                     )}
                     {showSavings && (
                       <div className="flex items-center gap-2 mb-1">
                         <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
-                        <span className="font-bold text-sm" style={{ color: PINK }}>{formatCurveMoney(pinkVal)}</span>
+                        <span
+                          className="font-bold text-sm"
+                          style={{ color: PINK, backgroundColor: hoveredValueSeries === "pink" ? VALUE_HIGHLIGHT : undefined }}
+                          {...valueHoverHandlers("pink")}
+                        >
+                          {formatCurveMoney(pinkVal)}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -882,7 +952,14 @@ export default function CompoundingTool() {
                       stroke={BLUE}
                       strokeWidth={2.5}
                       dot={(props: any) => props.index === hoveredDataIndex
-                        ? <circle key={props.key} cx={props.cx} cy={props.cy} r={5} fill={BLUE} stroke="white" strokeWidth={2} />
+                         ? (
+                           <g key={props.key}>
+                             {hoveredValueSeries === "blue" && (
+                               <circle cx={props.cx} cy={props.cy} r={9} fill={DOT_HIGHLIGHT} />
+                             )}
+                             <circle cx={props.cx} cy={props.cy} r={5} fill={BLUE} stroke="white" strokeWidth={2} />
+                           </g>
+                         )
                         : <g key={props.key} />}
                       activeDot={false}
                       name="With Contributions"
@@ -897,7 +974,14 @@ export default function CompoundingTool() {
                       stroke={BLACK}
                       strokeWidth={2}
                       dot={(props: any) => props.index === hoveredDataIndex
-                        ? <circle key={props.key} cx={props.cx} cy={props.cy} r={4} fill={BLACK} stroke="white" strokeWidth={2} />
+                         ? (
+                           <g key={props.key}>
+                             {hoveredValueSeries === "black" && (
+                               <circle cx={props.cx} cy={props.cy} r={8} fill={DOT_HIGHLIGHT} />
+                             )}
+                             <circle cx={props.cx} cy={props.cy} r={4} fill={BLACK} stroke="white" strokeWidth={2} />
+                           </g>
+                         )
                         : <g key={props.key} />}
                       strokeDasharray="6 3"
                       activeDot={false}
@@ -913,7 +997,14 @@ export default function CompoundingTool() {
                       stroke={PINK}
                       strokeWidth={2}
                       dot={(props: any) => props.index === hoveredDataIndex
-                        ? <circle key={props.key} cx={props.cx} cy={props.cy} r={4} fill={PINK} stroke="white" strokeWidth={2} />
+                         ? (
+                           <g key={props.key}>
+                             {hoveredValueSeries === "pink" && (
+                               <circle cx={props.cx} cy={props.cy} r={8} fill={DOT_HIGHLIGHT} />
+                             )}
+                             <circle cx={props.cx} cy={props.cy} r={4} fill={PINK} stroke="white" strokeWidth={2} />
+                           </g>
+                         )
                         : <g key={props.key} />}
                       strokeDasharray="4 4"
                       activeDot={false}
@@ -929,7 +1020,11 @@ export default function CompoundingTool() {
                       const yAxis = Object.values(props.yAxisMap ?? {})[0] as any;
                       if (!xAxis?.scale || !yAxis?.scale) return null;
 
-                      chartScaleRef.current = { xScale: xAxis.scale, yScale: yAxis.scale };
+                       chartScaleRef.current = {
+                         xScale: xAxis.scale,
+                         yScale: yAxis.scale,
+                         yMax,
+                       };
 
                       const leftX = xAxis.scale(chartData[0].age);
                       const selectedX = xAxis.scale(chartData[hoveredDataIndex].age);
@@ -992,7 +1087,7 @@ export default function CompoundingTool() {
               {/* Left: Decade inputs + action buttons */}
               <div className="w-full lg:w-2/5" onDoubleClick={(e) => e.stopPropagation()}>
                 <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">
-                  Yearly Additions by Age
+                  Yearly Investments by Age
                 </h2>
                 <div className="grid grid-cols-5 gap-1.5">
                   {decadeConfigs.map(({ key, label, step }) => (
@@ -1050,12 +1145,14 @@ export default function CompoundingTool() {
                 {/* Active mode — Return at age */}
                 <div className={`flex-1 ${summaryColors.background} rounded-2xl py-2 px-4 text-center flex flex-col justify-center`}>
                   <p data-testid="chart-facing-age" className={`text-xs ${summaryColors.label} mb-0.5 leading-snug`}>
-                    Age {displayAge} {activeSummaryLabel} is
+                    Age {displayAge}{showBlue || showBlack ? ":" : ""} {activeSummaryLabel} is
                   </p>
                   <p data-testid="summary-return-percentage" className={`text-base font-bold ${summaryColors.value}`}>
                     {percentDifference !== null
                       ? `${Math.abs(percentDifference).toLocaleString()}%`
-                      : formatMoney(Math.round(activeSummaryValue / 100) * 100)}
+                        : isSavingsOnly
+                          ? `$${Math.round(activeSummaryValue).toLocaleString()}`
+                          : formatMoney(Math.round(activeSummaryValue / 100) * 100)}
                   </p>
                   {percentDifference !== null && (
                     <p className={`text-xs ${summaryColors.detail} mt-0.5 leading-snug`}>
@@ -1081,46 +1178,93 @@ export default function CompoundingTool() {
                           <p className="text-[13px] text-gray-500 leading-snug">Savings<br />Only</p>
                           <div className="flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
-                            <span data-testid="summary-savings-value" className="text-lg font-bold" style={{ color: PINK }}>{formatCurveMoney(pinkVal)}</span>
+                            <span
+                              data-testid="summary-savings-value"
+                              className="text-lg font-bold"
+                              style={{ color: PINK, backgroundColor: hoveredValueSeries === "pink" ? VALUE_HIGHLIGHT : undefined }}
+                              {...valueHoverHandlers("pink")}
+                            >
+                              {formatCurveMoney(pinkVal)}
+                            </span>
                           </div>
                         </div>
                         {/* Col 2 — Compounding Only (black) */}
                         <div className="flex flex-col gap-1">
                           <p className="text-[13px] text-gray-500 leading-snug">Compounding<br />Only</p>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
-                            <span data-testid="summary-compounding-value" className="text-lg font-bold text-gray-800">{formatCurveMoney(blackVal)}</span>
-                          </div>
+                          {showBlack && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                              <span
+                                data-testid="summary-compounding-value"
+                                className="text-lg font-bold text-gray-800"
+                                style={{ backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
+                                {...valueHoverHandlers("black")}
+                              >
+                                {formatCurveMoney(blackVal)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {/* Col 3 — Compounding + Yearly (blue) */}
                         <div className="flex flex-col gap-1">
                           <p className="text-[13px] text-gray-500 leading-snug"><span className="whitespace-nowrap">Compounding +</span><br />Yearly Inv.</p>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
-                            <span data-testid="summary-compounding-yearly-value" className="text-lg font-bold" style={{ color: BLUE }}>{formatCurveMoney(blueVal)}</span>
-                          </div>
+                          {showBlue && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
+                              <span
+                                data-testid="summary-compounding-yearly-value"
+                                className="text-lg font-bold"
+                                style={{ color: BLUE, backgroundColor: hoveredValueSeries === "blue" ? VALUE_HIGHLIGHT : undefined }}
+                                {...valueHoverHandlers("blue")}
+                              >
+                                {formatCurveMoney(blueVal)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {/* Bottom row — delta diff lines (always visible) */}
                       <div className="relative flex w-full gap-4">
                         <div className="flex-1">
-                          <div className="group inline-flex items-center gap-1 cursor-default p-2 -m-2">
+                          <div className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
                             <span className="text-[11px] text-gray-400">△</span>
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
-                            {showSavings && hasContributions && diffBlackPink > 0 && (
-                              <span className="text-[13px] text-gray-700">-${(Math.round(diffBlackPink / 100) * 100).toLocaleString()}</span>
+                            {diffBlackPink !== 0 && (
+                              <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlackPink / 100) * 100).toLocaleString()}</span>
                             )}
-                            <div className="pointer-events-none absolute left-0 top-full z-50 mt-0 w-72 rounded-xl border border-gray-100 bg-white px-4 py-[22px] text-[13px] leading-snug text-gray-700 shadow-lg opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
-                              Difference between Compounding Only and Savings Only
-                              <div className="mt-2 flex flex-nowrap items-center gap-1 whitespace-nowrap">
-                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
-                                <span className="font-semibold" style={{ color: BLACK }}>{formatCurveMoney(blackVal)}</span>
-                                <span className="text-gray-400">–</span>
-                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
-                                <span className="font-semibold" style={{ color: PINK }}>{formatCurveMoney(pinkVal)}</span>
-                                <span className="text-gray-400">=</span>
-                                <span className="text-gray-700">-{formatCurveDeltaMoney(diffBlackPink)}</span>
+                            <div className="pointer-events-none absolute left-0 top-full z-50 -translate-y-1 pt-2 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
+                              <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
+                                <p className="max-w-[205px]">
+                                  At {ageLabel}, the difference between Compounding Only and Savings Only is:
+                                </p>
+                                <div className="mt-4 ml-auto w-fit min-w-[124px]">
+                                  <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                                    <span
+                                      className="font-semibold"
+                                      style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
+                                      {...valueHoverHandlers("black")}
+                                    >
+                                      {formatCurveMoney(blackVal)}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 flex items-center justify-end gap-1.5 whitespace-nowrap">
+                                    <span className="text-gray-400">−</span>
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
+                                    <span
+                                      className="font-semibold"
+                                      style={{ color: PINK, backgroundColor: hoveredValueSeries === "pink" ? VALUE_HIGHLIGHT : undefined }}
+                                      {...valueHoverHandlers("pink")}
+                                    >
+                                      {formatCurveMoney(pinkVal)}
+                                    </span>
+                                  </div>
+                                  <div className="my-2 border-t border-gray-300" />
+                                  <div className="text-right text-base font-semibold text-emerald-500">
+                                    {diffBlackPink < 0 && "−"}{formatCurveDeltaMoney(diffBlackPink)}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1130,19 +1274,41 @@ export default function CompoundingTool() {
                             <span className="text-[11px] text-gray-400">△</span>
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
-                            {hasContributions && diffBlueBlack > 0 && (
-                              <span className="text-[13px] text-gray-700">-${(Math.round(diffBlueBlack / 100) * 100).toLocaleString()}</span>
+                            {diffBlueBlack !== 0 && (
+                              <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlueBlack / 100) * 100).toLocaleString()}</span>
                             )}
-                            <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-0 w-72 -translate-x-1/2 rounded-xl border border-gray-100 bg-white px-4 py-[22px] text-[13px] leading-snug text-gray-700 shadow-lg opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
-                              Difference between Compounding + Yearly Inv. and Compounding Only
-                              <div className="mt-2 flex flex-nowrap items-center gap-1 whitespace-nowrap">
-                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
-                                <span className="font-semibold" style={{ color: BLUE }}>{formatCurveMoney(blueVal)}</span>
-                                <span className="text-gray-400">–</span>
-                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
-                                <span className="font-semibold" style={{ color: BLACK }}>{formatCurveMoney(blackVal)}</span>
-                                <span className="text-gray-400">=</span>
-                                <span className="text-gray-700">-{formatCurveDeltaMoney(diffBlueBlack)}</span>
+                            <div className="pointer-events-none absolute left-1/2 top-full z-50 -translate-x-1/2 -translate-y-1 pt-2 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
+                              <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
+                                <p className="max-w-[205px]">
+                                  At {ageLabel}, the difference between Compounding + Yearly Inv. and Compounding Only is:
+                                </p>
+                                <div className="mt-4 ml-auto w-fit min-w-[124px]">
+                                  <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
+                                    <span
+                                      className="font-semibold"
+                                      style={{ color: BLUE, backgroundColor: hoveredValueSeries === "blue" ? VALUE_HIGHLIGHT : undefined }}
+                                      {...valueHoverHandlers("blue")}
+                                    >
+                                      {formatCurveMoney(blueVal)}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 flex items-center justify-end gap-1.5 whitespace-nowrap">
+                                    <span className="text-gray-400">−</span>
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                                    <span
+                                      className="font-semibold"
+                                      style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
+                                      {...valueHoverHandlers("black")}
+                                    >
+                                      {formatCurveMoney(blackVal)}
+                                    </span>
+                                  </div>
+                                  <div className="my-2 border-t border-gray-300" />
+                                  <div className="text-right text-base font-semibold text-emerald-500">
+                                    {diffBlueBlack < 0 && "−"}{formatCurveDeltaMoney(diffBlueBlack)}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1290,26 +1456,14 @@ export default function CompoundingTool() {
                   {Array.from({ length: end - start }, (_, i) => {
                     const idx = start + i;
                     const age = STARTING_AGE + idx;
-                    const tableData = showBlue
-                      ? blueData
+                    const tableSeries: GrowthBarSeries = showBlue
+                      ? { key: "blue", data: blueData, lightColor: "#b2d8fe", activeColor: "#00d3ff" }
                       : showBlack
-                        ? blackData
-                        : pinkData;
+                        ? { key: "black", data: blackData, lightColor: "#d1d5db", activeColor: BLACK_BAR }
+                        : { key: "pink", data: pinkData, lightColor: "#fce7f3", activeColor: PINK };
+                    const tableData = tableSeries.data;
                     const value = tableData[idx];
-                    const visibleBarSeries = [
-                      showSavings
-                        ? { data: pinkData, lightColor: "#fce7f3", activeColor: PINK }
-                        : null,
-                      showBlack
-                        ? { data: blackData, lightColor: "#d1d5db", activeColor: BLACK_BAR }
-                        : null,
-                      showBlue
-                        ? { data: blueData, lightColor: "#b2d8fe", activeColor: "#00d3ff" }
-                        : null,
-                    ].filter(
-                      (series): series is { data: number[]; lightColor: string; activeColor: string } =>
-                        series !== null,
-                    );
+                    const visibleBarSeries = [tableSeries];
                     const maxVal = Math.max(
                       ...visibleBarSeries.map((series) => series.data[YEARS]),
                       1,
@@ -1351,7 +1505,15 @@ export default function CompoundingTool() {
                       >
                         <span className={`cell-hover text-[12px] ${rowActive ? "font-semibold" : ""}`} style={{ color: rowActive ? "#111827" : "#9ca3af" }}>{age}</span>
                         <span className={`cell-hover text-[12px] tabular-nums ${rowActive ? "font-semibold" : ""}`} style={{ color: rowActive ? "#111827" : "#9ca3af" }}>{yearInterest === null ? "—" : `$${yearInterest.toLocaleString()}`}</span>
-                        <span className={`cell-hover text-[12px] tabular-nums ${rowActive ? "font-semibold" : ""}`} style={{ color: rowActive ? "#111827" : "#9ca3af" }}>${Math.round(value).toLocaleString()}</span>
+                         <span
+                           className={`cell-hover text-[12px] tabular-nums ${rowActive ? "font-semibold" : ""}`}
+                           style={{
+                             color: rowActive ? "#111827" : "#9ca3af",
+                             backgroundColor: isHovered && hoveredValueSeries === tableSeries.key ? VALUE_HIGHLIGHT : undefined,
+                           }}
+                         >
+                           ${Math.round(value).toLocaleString()}
+                         </span>
                         <div
                           className="flex items-center gap-1.5 cursor-default"
                           onMouseEnter={() => setBarHoveredIdx(idx)}
