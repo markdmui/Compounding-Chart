@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { CompoundingExplainer } from "@/components/CompoundingExplainer";
 import { QuizMode } from "@/components/QuizMode";
+import { LearnMode, type LearnStageState } from "@/components/LearnMode";
 
 const YEARS = 50;
 const STARTING_AGE = 10;
@@ -150,6 +151,7 @@ interface NumberInputProps {
   step?: number;
   className?: string;
   inputClassName?: string;
+  dataTour?: string;
 }
 
 function InlineNumberInput({
@@ -161,6 +163,7 @@ function InlineNumberInput({
   step = 1,
   className = "",
   inputClassName = "",
+  dataTour,
 }: NumberInputProps) {
   const [local, setLocal] = useState(String(value));
 
@@ -170,6 +173,7 @@ function InlineNumberInput({
 
   return (
     <span
+      data-tour={dataTour}
       className={`inline-flex items-center bg-gray-100 rounded-lg px-2 py-0.5 ${className}`}
     >
       {prefix && <span className="text-gray-500 text-sm">{prefix}</span>}
@@ -353,6 +357,9 @@ export default function CompoundingTool() {
   const [initialInvestment, setInitialInvestment] = useState(DEFAULTS.initialInvestment);
   const [explainerOpen, setExplainerOpen] = useState(true);
   const [quizOpen, setQuizOpen] = useState(false);
+  const [learnOpen, setLearnOpen] = useState(false);
+  const [forcedDelta, setForcedDelta] = useState<"blackPink" | "blueBlack" | null>(null);
+  const [growthSectionVisible, setGrowthSectionVisible] = useState(true);
   const [lessonsSummaryOpen, setLessonsSummaryOpen] = useState(true);
   const [growthTableOpen, setGrowthTableOpen] = useState(true);
   const [annualRate, setAnnualRate] = useState(DEFAULTS.annualRate);
@@ -381,6 +388,11 @@ export default function CompoundingTool() {
     setQuizOpen(true);
   }, []);
   const handleQuizClose = useCallback(() => setQuizOpen(false), []);
+  const handleLearnClose = useCallback(() => {
+    setLearnOpen(false);
+    setForcedDelta(null);
+    setGrowthSectionVisible(true);
+  }, []);
   const handleAgeChange = useCallback((index: number) => {
     setHoveredDataIndex(Math.min(YEARS, Math.max(0, index)));
   }, []);
@@ -393,7 +405,7 @@ export default function CompoundingTool() {
   );
 
   useEffect(() => {
-    if (quizOpen) return;
+    if (quizOpen || learnOpen) return;
 
     const handleExplainerShortcut = (event: KeyboardEvent) => {
       if (
@@ -422,10 +434,10 @@ export default function CompoundingTool() {
 
     window.addEventListener("keydown", handleExplainerShortcut);
     return () => window.removeEventListener("keydown", handleExplainerShortcut);
-  }, [quizOpen]);
+  }, [quizOpen, learnOpen]);
 
   useEffect(() => {
-    if (explainerOpen || quizOpen) return;
+    if (explainerOpen || quizOpen || learnOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
@@ -448,7 +460,7 @@ export default function CompoundingTool() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [explainerOpen, quizOpen, handleAgeChange, hoveredDataIndex]);
+  }, [explainerOpen, quizOpen, learnOpen, handleAgeChange, hoveredDataIndex]);
 
   useEffect(() => {
     const handleSettingsShortcut = (event: KeyboardEvent) => {
@@ -482,7 +494,7 @@ export default function CompoundingTool() {
   // Keyboard shortcuts: 1 toggles Savings, 2 toggles Compounding,
   // 3 toggles Compounding+Yearly Inv.
   useEffect(() => {
-    if (quizOpen) return;
+    if (quizOpen || learnOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -508,7 +520,7 @@ export default function CompoundingTool() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [quizOpen]);
+  }, [quizOpen, learnOpen]);
 
   const blueData = calculateGrowthWithContributions(
     initialInvestment,
@@ -596,6 +608,30 @@ export default function CompoundingTool() {
     setShowBlack(false);
     setGrowthTableOpen(true);
   };
+
+  // The guided tour asks for a page state; the page is what actually sets it.
+  const handleLearnStage = useCallback((stage: LearnStageState) => {
+    if (stage.reset) handleReset();
+    if (stage.showSavings !== undefined) setShowSavings(stage.showSavings);
+    if (stage.showBlack !== undefined) setShowBlack(stage.showBlack);
+    if (stage.showBlue !== undefined) setShowBlue(stage.showBlue);
+    if (stage.lessonsSummaryOpen !== undefined)
+      setLessonsSummaryOpen(stage.lessonsSummaryOpen);
+    if (stage.growthTableOpen !== undefined)
+      setGrowthTableOpen(stage.growthTableOpen);
+    if (stage.ageIndex !== undefined) handleAgeChange(stage.ageIndex);
+    if (stage.explainerOpen !== undefined) setExplainerOpen(stage.explainerOpen);
+    setForcedDelta(stage.showDelta ?? null);
+    if (stage.growthVisible !== undefined)
+      setGrowthSectionVisible(stage.growthVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleLearnOpen = useCallback(() => {
+    setExplainerOpen(false);
+    setQuizOpen(false);
+    setLearnOpen(true);
+  }, []);
 
   const updateContrib = useCallback(
     (key: keyof ContributionsByDecade) => (v: number) => {
@@ -687,6 +723,13 @@ export default function CompoundingTool() {
         <div className="relative mb-4 md:mb-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
           <button
             type="button"
+            onClick={handleLearnOpen}
+            className="absolute left-0 top-0 text-sm text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
+          >
+            Introduction
+          </button>
+          <button
+            type="button"
             onClick={handleQuizOpen}
             aria-haspopup="dialog"
             className="absolute right-0 top-0 text-sm text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
@@ -697,6 +740,7 @@ export default function CompoundingTool() {
             Power of Compounding
           </span>
           <InlineNumberInput
+            dataTour="title"
             value={initialInvestment}
             onChange={setInitialInvestment}
             prefix="$"
@@ -709,6 +753,7 @@ export default function CompoundingTool() {
             with Yearly Interest Rate of
           </span>
           <InlineNumberInput
+            dataTour="rate"
             value={annualRate}
             onChange={setAnnualRate}
             suffix="%"
@@ -720,14 +765,14 @@ export default function CompoundingTool() {
         </div>
 
         {/* Main Card */}
-        <div className="bg-white overflow-hidden">
+        <div className="bg-white">
 
           {/* 3xl side-by-side wrapper: left=chart+controls, right=growth table */}
           <div className="side-by-side-wrapper">
           <div className="side-by-side-left">
 
           {/* Chart Section */}
-          <div ref={chartSectionRef} className="relative p-4 pb-2">
+          <div ref={chartSectionRef} data-tour="chart" className="relative p-4 pb-2">
             {renderCustomLegend()}
 
             {/* Floating explanation tooltip — absolutely positioned, never shifts layout */}
@@ -1085,7 +1130,7 @@ export default function CompoundingTool() {
             <div className="flex flex-col lg:flex-row gap-6 items-start">
 
               {/* Left: Decade inputs + action buttons */}
-              <div className="w-full lg:w-2/5" onDoubleClick={(e) => e.stopPropagation()}>
+              <div data-tour="inputs" className="w-full lg:w-2/5" onDoubleClick={(e) => e.stopPropagation()}>
                 <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">
                   Yearly Investments by Age
                 </h2>
@@ -1110,20 +1155,23 @@ export default function CompoundingTool() {
                     Reset
                   </button>
                   <button
+                    data-tour="btn-savings"
                     onClick={() => setShowSavings((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal ${showSavings ? "bg-pink-100 text-pink-500 hover:bg-pink-200" : "text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal ${showSavings ? "bg-pink-100 text-pink-500" : "text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"}`}
                   >
                     Savings
                   </button>
                   <button
+                    data-tour="btn-compounding"
                     onClick={() => setShowBlack((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal ${showBlack ? "bg-gray-200 text-gray-800 hover:bg-gray-300" : "text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal ${showBlack ? "bg-gray-200 text-gray-800" : "text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"}`}
                   >
                     Compounding
                   </button>
                   <button
+                    data-tour="btn-blue"
                     onClick={() => setShowBlue((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal ${showBlue ? "bg-blue-100 text-blue-600 hover:bg-blue-200" : "text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal ${showBlue ? "bg-blue-100 text-blue-600" : "text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"}`}
                   >
                     Compounding+Yearly Inv.
                   </button>
@@ -1133,7 +1181,7 @@ export default function CompoundingTool() {
               {/* Right: Stats cards */}
               <div className="w-full lg:w-3/5 flex flex-col sm:flex-row gap-3 items-stretch">
                 {/* Green — Total Added */}
-                <div className="flex-1 bg-green-50 rounded-2xl py-2 px-4 text-center flex flex-col justify-center">
+                <div data-tour="green" className="flex-1 bg-green-50 rounded-2xl py-2 px-4 text-center flex flex-col justify-center">
                   <p className="text-base font-bold text-green-700 mb-1">
                     ${totalContributions.toLocaleString()}
                   </p>
@@ -1143,7 +1191,7 @@ export default function CompoundingTool() {
                 </div>
 
                 {/* Active mode — Return at age */}
-                <div className={`flex-1 ${summaryColors.background} rounded-2xl py-2 px-4 text-center flex flex-col justify-center`}>
+                <div data-tour="valuecard" className={`flex-1 ${summaryColors.background} rounded-2xl py-2 px-4 text-center flex flex-col justify-center`}>
                   <p data-testid="chart-facing-age" className={`text-xs ${summaryColors.label} mb-0.5 leading-snug`}>
                     Age {displayAge}{showBlue || showBlack ? ":" : ""} {activeSummaryLabel} is
                   </p>
@@ -1171,7 +1219,7 @@ export default function CompoundingTool() {
                   const diffBlackPink = blackVal - pinkVal;
                   const diffBlueBlack = blueVal - blackVal;
                   return (
-                    <div className="flex-[2] bg-white border border-gray-100 rounded-2xl py-2 px-3 flex flex-col gap-1.5">
+                    <div data-tour="modes" className="flex-[2] bg-white border border-gray-100 rounded-2xl py-2 px-3 flex flex-col gap-1.5">
                       <div className="grid grid-cols-3 gap-2">
                         {/* Col 1 — Savings Only (pink) */}
                         <div className="flex flex-col gap-1">
@@ -1226,14 +1274,14 @@ export default function CompoundingTool() {
                       {/* Bottom row — delta diff lines (always visible) */}
                       <div className="relative flex w-full gap-4">
                         <div className="flex-1">
-                          <div className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
+                          <div data-tour="delta1" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
                             <span className="text-[11px] text-gray-400">△</span>
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
                             {diffBlackPink !== 0 && (
                               <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlackPink / 100) * 100).toLocaleString()}</span>
                             )}
-                            <div className="pointer-events-none absolute left-0 top-full z-50 -translate-y-1 pt-2 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
+                            <div className={`pointer-events-none absolute left-0 top-full z-50 -translate-y-1 pt-2 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 ${forcedDelta === "blackPink" ? "opacity-100" : "opacity-0"}`}>
                               <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
                                 <p className="max-w-[205px]">
                                   At {ageLabel}, the difference between Compounding Only and Savings Only is:
@@ -1242,7 +1290,7 @@ export default function CompoundingTool() {
                                   <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
                                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
                                     <span
-                                      className="font-semibold"
+                                      className="text-sm font-semibold"
                                       style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
                                       {...valueHoverHandlers("black")}
                                     >
@@ -1253,7 +1301,7 @@ export default function CompoundingTool() {
                                     <span className="text-gray-400">−</span>
                                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
                                     <span
-                                      className="font-semibold"
+                                      className="text-sm font-semibold"
                                       style={{ color: PINK, backgroundColor: hoveredValueSeries === "pink" ? VALUE_HIGHLIGHT : undefined }}
                                       {...valueHoverHandlers("pink")}
                                     >
@@ -1270,14 +1318,14 @@ export default function CompoundingTool() {
                           </div>
                         </div>
                         <div className="flex-1">
-                          <div className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
+                          <div data-tour="delta2" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
                             <span className="text-[11px] text-gray-400">△</span>
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
                             {diffBlueBlack !== 0 && (
                               <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlueBlack / 100) * 100).toLocaleString()}</span>
                             )}
-                            <div className="pointer-events-none absolute left-1/2 top-full z-50 -translate-x-1/2 -translate-y-1 pt-2 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
+                            <div className={`pointer-events-none absolute left-1/2 top-full z-50 -translate-x-1/2 -translate-y-1 pt-2 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 ${forcedDelta === "blueBlack" ? "opacity-100" : "opacity-0"}`}>
                               <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
                                 <p className="max-w-[205px]">
                                   At {ageLabel}, the difference between Compounding + Yearly Inv. and Compounding Only is:
@@ -1286,7 +1334,7 @@ export default function CompoundingTool() {
                                   <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
                                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
                                     <span
-                                      className="font-semibold"
+                                      className="text-sm font-semibold"
                                       style={{ color: BLUE, backgroundColor: hoveredValueSeries === "blue" ? VALUE_HIGHLIGHT : undefined }}
                                       {...valueHoverHandlers("blue")}
                                     >
@@ -1297,7 +1345,7 @@ export default function CompoundingTool() {
                                     <span className="text-gray-400">−</span>
                                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
                                     <span
-                                      className="font-semibold"
+                                      className="text-sm font-semibold"
                                       style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
                                       {...valueHoverHandlers("black")}
                                     >
@@ -1344,12 +1392,13 @@ export default function CompoundingTool() {
             {lessonsSummaryOpen && (
               <div className="px-6 pb-6 grid grid-cols-[11fr_9fr] gap-8">
                 {/* Lessons */}
-                <div>
+                <div data-tour="lessons">
                   <ol className="space-y-0">
                     {([
                       <>
                         <button
                           type="button"
+                          data-tour="whatis"
                           onClick={() => setExplainerOpen(true)}
                           className="cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                           aria-haspopup="dialog"
@@ -1373,7 +1422,7 @@ export default function CompoundingTool() {
                 </div>
 
                 {/* Summary */}
-                <div>
+                <div data-tour="summary">
                   <div className="grid grid-cols-[auto_70px_auto] gap-x-6 gap-y-1 w-fit">
                     <div />
                     <span className="text-xs text-gray-400 font-semibold uppercase">Interest:</span>
@@ -1420,8 +1469,8 @@ export default function CompoundingTool() {
           </div>{/* end left panel */}
 
           {/* Right panel: Growth Progression Chart */}
-          <div className={`side-by-side-right ${hasVisibleGrowthMode ? "" : "hidden"}`}>
-          <div className="growth-table-section border-t border-gray-100">
+          <div className={`side-by-side-right ${hasVisibleGrowthMode && growthSectionVisible ? "" : "hidden"}`}>
+          <div data-tour="growth" className="growth-table-section border-t border-gray-100">
             <button
               onClick={() => setGrowthTableOpen(o => !o)}
               className="w-full flex items-center justify-between px-6 py-[8px] cursor-pointer hover:bg-gray-50 transition-colors"
@@ -1574,6 +1623,7 @@ export default function CompoundingTool() {
         onAgeChange={handleAgeChange}
         onClose={handleExplainerClose}
       />
+      <LearnMode open={learnOpen} onClose={handleLearnClose} onStage={handleLearnStage} />
       <QuizMode
         open={quizOpen}
         principal={initialInvestment}

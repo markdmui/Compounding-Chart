@@ -343,6 +343,7 @@ export function CompoundingExplainer({
     >
       <section
         ref={dialogRef}
+        data-tour="explainer"
         role="dialog"
         aria-modal="false"
         aria-labelledby="compounding-explainer-title"
