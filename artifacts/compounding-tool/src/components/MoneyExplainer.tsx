@@ -78,7 +78,7 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
 
   return createPortal(
     <div
-      className="pointer-events-none fixed inset-0 z-[110] flex items-end justify-end bg-transparent p-4 sm:p-6 lg:pb-24 lg:pr-20"
+      className="pointer-events-none fixed inset-0 z-[110] flex items-center justify-center bg-transparent p-4 sm:p-6"
       role="presentation"
     >
       <section

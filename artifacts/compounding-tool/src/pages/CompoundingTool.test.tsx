@@ -72,6 +72,20 @@ function expectSynchronizedChartState(age: number) {
 }
 
 describe("growth table chart navigation", () => {
+  it("resets every yearly investment decade to $200", async () => {
+    const user = userEvent.setup();
+    render(<CompoundingTool />);
+
+    const contributionInputs = screen.getAllByRole("spinbutton").slice(-5);
+    expect(contributionInputs.map((input) => input)).toHaveLength(5);
+
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+
+    for (const input of contributionInputs) {
+      expect(input).toHaveValue(200);
+    }
+  });
+
   it("updates the growth heading according to mode priority", async () => {
     const user = userEvent.setup();
     render(<CompoundingTool />);
@@ -177,6 +191,16 @@ describe("growth table chart navigation", () => {
 });
 
 describe("money explainer", () => {
+  it("starts with the compounding explainer closed", () => {
+    render(<CompoundingTool />);
+
+    expect(
+      screen.queryByRole("dialog", {
+        name: "Same Start, 3 Kinds of Growth",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("opens as the final Introduction walkthrough slide", async () => {
     const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
     HTMLElement.prototype.scrollIntoView = () => {};

@@ -168,7 +168,7 @@ const STEPS: LearnStep[] = [
     alsoOutline: ["explainer"],
   },
   {
-    target: "money-explainer",
+    target: "money-link",
     title: "An Intro to Money",
     body: "Many kids never learn what money is or why it matters. They learn that money is something you spend, that it lets you buy things, and that you should save it. All of that is true - but those ideas describe what you do with money, not what money is. When you start with first principles - understanding what money actually represents - you can make better decisions with it. That is the foundation for becoming a responsible saver, spender, and investor.",
     stage: {
@@ -177,7 +177,7 @@ const STEPS: LearnStep[] = [
       moneyExplainerOpen: true,
     },
     place: "above",
-    alsoOutline: ["money-link"],
+    alsoOutline: ["money-explainer"],
   },
 ];
 

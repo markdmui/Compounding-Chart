@@ -356,12 +356,12 @@ const DEFAULTS = {
 const RESET_SETTINGS = {
   initialInvestment: 1000,
   annualRate: 10,
-  contributions: { "10s": 100, "20s": 100, "30s": 100, "40s": 100, "50s": 100 } as ContributionsByDecade,
+  contributions: { "10s": 200, "20s": 200, "30s": 200, "40s": 200, "50s": 200 } as ContributionsByDecade,
 };
 
 export default function CompoundingTool() {
   const [initialInvestment, setInitialInvestment] = useState(DEFAULTS.initialInvestment);
-  const [explainerOpen, setExplainerOpen] = useState(true);
+  const [explainerOpen, setExplainerOpen] = useState(false);
   const [moneyExplainerOpen, setMoneyExplainerOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
   const [learnOpen, setLearnOpen] = useState(false);
