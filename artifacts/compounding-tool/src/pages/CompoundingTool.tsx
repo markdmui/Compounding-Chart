@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import { CompoundingExplainer } from "@/components/CompoundingExplainer";
+import { MoneyExplainer } from "@/components/MoneyExplainer";
 import { QuizMode } from "@/components/QuizMode";
 import { LearnMode, type LearnStageState } from "@/components/LearnMode";
 
@@ -25,6 +26,11 @@ const PINK = "#f472b6";
 const VALUE_HIGHLIGHT = "#ffff99";
 const DOT_HIGHLIGHT = "#d1d5db";
 type ValueSeries = "pink" | "black" | "blue";
+type SummaryValueColumn = "interest" | "money";
+type SummaryHoverTarget = {
+  idx: number;
+  column: SummaryValueColumn;
+} | null;
 type GrowthBarSeries = {
   key: ValueSeries;
   data: number[];
@@ -135,11 +141,11 @@ function HeaderHint({ label, hint }: { label: string; hint: string }) {
 
 const EXPLANATIONS: Record<string, string> = {
   blue:
-    "Compounding supercharged with yearly investments. Notice how much larger this is — that's the power of investing more money into the system each year.",
+    "Compounding supercharged with yearly investments. Notice how much larger this is - that's the power of investing more money into the system each year.",
   black:
-    "The black line shows your money compounding at the set interest rate with no extra additions. Each year, interest grows on top of prior growth — growth on top of growth.",
+    "The black line shows your money compounding at the set interest rate with no extra additions. Each year, interest grows on top of prior growth - growth on top of growth.",
   pink:
-    "The pink line is pure linear savings — no compounding, just adding $200/year to your principal. Good, but nowhere near the power of compound interest.",
+    "The pink line is pure linear savings - no compounding, just adding $200/year to your principal. Good, but nowhere near the power of compound interest.",
 };
 
 interface NumberInputProps {
@@ -356,6 +362,7 @@ const RESET_SETTINGS = {
 export default function CompoundingTool() {
   const [initialInvestment, setInitialInvestment] = useState(DEFAULTS.initialInvestment);
   const [explainerOpen, setExplainerOpen] = useState(true);
+  const [moneyExplainerOpen, setMoneyExplainerOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
   const [learnOpen, setLearnOpen] = useState(false);
   const [forcedDelta, setForcedDelta] = useState<"blackPink" | "blueBlack" | null>(null);
@@ -373,6 +380,8 @@ export default function CompoundingTool() {
   const [barHoveredIdx, setBarHoveredIdx] = useState<number | null>(null);
   const [hoveredLegend, setHoveredLegend] = useState<string | null>(null);
   const [hoveredValueSeries, setHoveredValueSeries] = useState<ValueSeries | null>(null);
+  const [hoveredSummaryValue, setHoveredSummaryValue] =
+    useState<SummaryHoverTarget>(null);
   const [tooltipPos, setTooltipPos] = useState<{ left: number; top: number } | null>(null);
   const chartSectionRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -382,9 +391,18 @@ export default function CompoundingTool() {
     yMax: number;
   } | null>(null);
   const handleExplainerClose = useCallback(() => setExplainerOpen(false), []);
+  const handleMoneyExplainerClose = useCallback(
+    () => setMoneyExplainerOpen(false),
+    [],
+  );
+  const handleMoneyExplainerOpen = useCallback(() => {
+    setExplainerOpen(false);
+    setMoneyExplainerOpen(true);
+  }, []);
   // Quiz Mode takes over the screen: close anything else that is open first.
   const handleQuizOpen = useCallback(() => {
     setExplainerOpen(false);
+    setMoneyExplainerOpen(false);
     setQuizOpen(true);
   }, []);
   const handleQuizClose = useCallback(() => setQuizOpen(false), []);
@@ -408,8 +426,10 @@ export default function CompoundingTool() {
     if (quizOpen || learnOpen) return;
 
     const handleExplainerShortcut = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
       if (
-        event.key.toLowerCase() !== "f" ||
+        key !== "f" &&
+        key !== "m" ||
         event.ctrlKey ||
         event.metaKey ||
         event.altKey ||
@@ -428,16 +448,40 @@ export default function CompoundingTool() {
         return;
       }
 
+      if (key === "f" && moneyExplainerOpen) {
+        event.preventDefault();
+        setMoneyExplainerOpen(false);
+        setExplainerOpen(true);
+        return;
+      }
+
+      if (key === "m") {
+        event.preventDefault();
+        if (moneyExplainerOpen) {
+          setMoneyExplainerOpen(false);
+        } else {
+          handleMoneyExplainerOpen();
+        }
+        return;
+      }
+
+      if (moneyExplainerOpen) return;
+
       event.preventDefault();
       setExplainerOpen((open) => !open);
     };
 
     window.addEventListener("keydown", handleExplainerShortcut);
     return () => window.removeEventListener("keydown", handleExplainerShortcut);
-  }, [quizOpen, learnOpen]);
+  }, [
+    handleMoneyExplainerOpen,
+    learnOpen,
+    moneyExplainerOpen,
+    quizOpen,
+  ]);
 
   useEffect(() => {
-    if (explainerOpen || quizOpen || learnOpen) return;
+    if (explainerOpen || moneyExplainerOpen || quizOpen || learnOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
@@ -460,7 +504,14 @@ export default function CompoundingTool() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [explainerOpen, quizOpen, learnOpen, handleAgeChange, hoveredDataIndex]);
+  }, [
+    explainerOpen,
+    moneyExplainerOpen,
+    quizOpen,
+    learnOpen,
+    handleAgeChange,
+    hoveredDataIndex,
+  ]);
 
   useEffect(() => {
     const handleSettingsShortcut = (event: KeyboardEvent) => {
@@ -575,6 +626,11 @@ export default function CompoundingTool() {
           value: "text-pink-700",
           detail: "text-pink-500",
         };
+  const growthHeading = showBlue
+    ? "Compounding plus Additional Investments Over Time"
+    : showBlack
+      ? "Compounding Growth Over Time"
+      : "Savings Growth Over Time";
   const pinkAtDisplay = pinkData[displayIdx];
   const percentDifference = !isSavingsOnly && pinkAtDisplay > 0
     ? Math.round(((activeSummaryValue - pinkAtDisplay) / pinkAtDisplay) * 100)
@@ -621,6 +677,7 @@ export default function CompoundingTool() {
       setGrowthTableOpen(stage.growthTableOpen);
     if (stage.ageIndex !== undefined) handleAgeChange(stage.ageIndex);
     if (stage.explainerOpen !== undefined) setExplainerOpen(stage.explainerOpen);
+    setMoneyExplainerOpen(stage.moneyExplainerOpen === true);
     setForcedDelta(stage.showDelta ?? null);
     if (stage.growthVisible !== undefined)
       setGrowthSectionVisible(stage.growthVisible);
@@ -629,6 +686,7 @@ export default function CompoundingTool() {
 
   const handleLearnOpen = useCallback(() => {
     setExplainerOpen(false);
+    setMoneyExplainerOpen(false);
     setQuizOpen(false);
     setLearnOpen(true);
   }, []);
@@ -724,8 +782,19 @@ export default function CompoundingTool() {
           <button
             type="button"
             onClick={handleLearnOpen}
-            className="absolute left-0 top-0 text-sm text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
+            aria-pressed={learnOpen}
+            className={`absolute left-0 top-0 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
+              learnOpen
+                ? "bg-blue-50 text-blue-600"
+                : "text-gray-400 hover:text-gray-700"
+            }`}
           >
+            <span
+              aria-hidden="true"
+              className={`h-1.5 w-1.5 rounded-full ${
+                learnOpen ? "bg-blue-500" : "bg-gray-300"
+              }`}
+            />
             Introduction
           </button>
           <button
@@ -775,7 +844,7 @@ export default function CompoundingTool() {
           <div ref={chartSectionRef} data-tour="chart" className="relative p-4 pb-2">
             {renderCustomLegend()}
 
-            {/* Floating explanation tooltip — absolutely positioned, never shifts layout */}
+            {/* Floating explanation tooltip - absolutely positioned, never shifts layout */}
             <AnimatePresence>
               {hoveredLegend && tooltipPos && (
                 <motion.div
@@ -784,14 +853,14 @@ export default function CompoundingTool() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -4, scale: 0.97 }}
                   transition={{ duration: 0.1 }}
-                  className="absolute z-20 w-64 px-4 py-3 rounded-xl text-sm text-gray-700 leading-relaxed pointer-events-none shadow-lg border border-gray-100 bg-white"
+                  className="absolute z-30 w-64 px-4 py-3 rounded-xl text-sm text-gray-700 leading-relaxed pointer-events-none shadow-lg border border-gray-100 bg-white"
                   style={{
                     left: tooltipPos.left,
                     top: tooltipPos.top,
                   }}
                 >
                   {hoveredLegend === "pink"
-                    ? `The pink line is pure linear savings — no compounding, just adding your yearly contributions to your principal. Good, but nowhere near the power of compound interest.`
+                    ? `The pink line is pure linear savings - no compounding, just adding your yearly contributions to your principal. Good, but nowhere near the power of compound interest.`
                     : EXPLANATIONS[hoveredLegend]}
                 </motion.div>
               )}
@@ -1180,7 +1249,7 @@ export default function CompoundingTool() {
 
               {/* Right: Stats cards */}
               <div className="w-full lg:w-3/5 flex flex-col sm:flex-row gap-3 items-stretch">
-                {/* Green — Total Added */}
+                {/* Green - Total Added */}
                 <div data-tour="green" className="flex-1 bg-green-50 rounded-2xl py-2 px-4 text-center flex flex-col justify-center">
                   <p className="text-base font-bold text-green-700 mb-1">
                     ${totalContributions.toLocaleString()}
@@ -1190,7 +1259,7 @@ export default function CompoundingTool() {
                   </p>
                 </div>
 
-                {/* Active mode — Return at age */}
+                {/* Active mode - Return at age */}
                 <div data-tour="valuecard" className={`flex-1 ${summaryColors.background} rounded-2xl py-2 px-4 text-center flex flex-col justify-center`}>
                   <p data-testid="chart-facing-age" className={`text-xs ${summaryColors.label} mb-0.5 leading-snug`}>
                     Age {displayAge}{showBlue || showBlack ? ":" : ""} {activeSummaryLabel} is
@@ -1209,7 +1278,7 @@ export default function CompoundingTool() {
                   )}
                 </div>
 
-                {/* Gray — Live hover data broken into 3 sub-columns */}
+                {/* Gray - Live hover data broken into 3 sub-columns */}
                 {(() => {
                   const idx = hoveredDataIndex ?? YEARS;
                   const ageLabel = `Age ${STARTING_AGE + idx}`;
@@ -1221,7 +1290,7 @@ export default function CompoundingTool() {
                   return (
                     <div data-tour="modes" className="flex-[2] bg-white border border-gray-100 rounded-2xl py-2 px-3 flex flex-col gap-1.5">
                       <div className="grid grid-cols-3 gap-2">
-                        {/* Col 1 — Savings Only (pink) */}
+                        {/* Col 1 - Savings Only (pink) */}
                         <div className="flex flex-col gap-1">
                           <p className="text-[13px] text-gray-500 leading-snug">Savings<br />Only</p>
                           <div className="flex items-center gap-1.5">
@@ -1236,7 +1305,7 @@ export default function CompoundingTool() {
                             </span>
                           </div>
                         </div>
-                        {/* Col 2 — Compounding Only (black) */}
+                        {/* Col 2 - Compounding Only (black) */}
                         <div className="flex flex-col gap-1">
                           <p className="text-[13px] text-gray-500 leading-snug">Compounding<br />Only</p>
                           {showBlack && (
@@ -1253,7 +1322,7 @@ export default function CompoundingTool() {
                             </div>
                           )}
                         </div>
-                        {/* Col 3 — Compounding + Yearly (blue) */}
+                        {/* Col 3 - Compounding + Yearly (blue) */}
                         <div className="flex flex-col gap-1">
                           <p className="text-[13px] text-gray-500 leading-snug"><span className="whitespace-nowrap">Compounding +</span><br />Yearly Inv.</p>
                           {showBlue && (
@@ -1271,7 +1340,7 @@ export default function CompoundingTool() {
                           )}
                         </div>
                       </div>
-                      {/* Bottom row — delta diff lines (always visible) */}
+                      {/* Bottom row - delta diff lines (always visible) */}
                       <div className="relative flex w-full gap-4">
                         <div className="flex-1">
                           <div data-tour="delta1" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
@@ -1399,7 +1468,10 @@ export default function CompoundingTool() {
                         <button
                           type="button"
                           data-tour="whatis"
-                          onClick={() => setExplainerOpen(true)}
+                          onClick={() => {
+                            setMoneyExplainerOpen(false);
+                            setExplainerOpen(true);
+                          }}
                           className="cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                           aria-haspopup="dialog"
                         >
@@ -1412,6 +1484,20 @@ export default function CompoundingTool() {
                       "Consistency beats amount, investing early is better than investing a lot later in life",
                       "Re-invest your dividends so your interest earns more interest",
                       "Patience is your best friend because growth takes time",
+                      <>
+                        <button
+                          type="button"
+                          data-tour="money-link"
+                          onClick={() => {
+                            handleMoneyExplainerOpen();
+                          }}
+                          className="cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                          aria-haspopup="dialog"
+                        >
+                          What is money?
+                        </button>{" "}
+                        Money is a way to store and trade value.
+                      </>,
                     ] as React.ReactNode[]).map((lesson, i) => (
                       <li key={i} className="flex gap-2 text-[13px] text-gray-600">
                         <span className="text-gray-400 flex-shrink-0">{i + 1}.</span>
@@ -1434,11 +1520,50 @@ export default function CompoundingTool() {
                     ] as { label: string; idx: number }[]).map(({ label, idx }) => {
                       const money = blueData[idx];
                       const interest = Math.round(blueData[idx - 1] * rate);
+                      const isInterestHovered =
+                        hoveredSummaryValue?.idx === idx &&
+                        hoveredSummaryValue.column === "interest";
+                      const isMoneyHovered =
+                        hoveredSummaryValue?.idx === idx &&
+                        hoveredSummaryValue.column === "money";
+                      const summaryValueHoverHandlers = (
+                        column: SummaryValueColumn,
+                      ) => ({
+                        onMouseEnter: () =>
+                          setHoveredSummaryValue({ idx, column }),
+                        onMouseLeave: () => setHoveredSummaryValue(null),
+                        onFocus: () => setHoveredSummaryValue({ idx, column }),
+                        onBlur: () => setHoveredSummaryValue(null),
+                      });
                       return (
                         <Fragment key={label}>
                           <span className="text-sm text-gray-500">{label}</span>
-                          <span className="text-sm font-semibold text-gray-700 tabular-nums">${interest.toLocaleString()}</span>
-                          <span className="text-sm font-semibold text-gray-700 tabular-nums">${Math.round(money).toLocaleString()}</span>
+                          <span
+                            data-testid={`summary-interest-${idx}`}
+                            tabIndex={0}
+                            className="inline-block rounded-sm px-1 -mx-1 text-sm font-semibold text-gray-700 tabular-nums transition-colors"
+                            style={{
+                              backgroundColor: isInterestHovered
+                                ? VALUE_HIGHLIGHT
+                                : undefined,
+                            }}
+                            {...summaryValueHoverHandlers("interest")}
+                          >
+                            ${interest.toLocaleString()}
+                          </span>
+                          <span
+                            data-testid={`summary-money-${idx}`}
+                            tabIndex={0}
+                            className="inline-block rounded-sm px-1 -mx-1 text-sm font-semibold text-gray-700 tabular-nums transition-colors"
+                            style={{
+                              backgroundColor: isMoneyHovered
+                                ? VALUE_HIGHLIGHT
+                                : undefined,
+                            }}
+                            {...summaryValueHoverHandlers("money")}
+                          >
+                            ${Math.round(money).toLocaleString()}
+                          </span>
                         </Fragment>
                       );
                     })}
@@ -1475,7 +1600,12 @@ export default function CompoundingTool() {
               onClick={() => setGrowthTableOpen(o => !o)}
               className="w-full flex items-center justify-between px-6 py-[8px] cursor-pointer hover:bg-gray-50 transition-colors"
             >
-              <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">📈 Compounding Growth Over Time</span>
+              <span
+                data-testid="growth-heading"
+                className="text-sm font-bold text-gray-700 uppercase tracking-wider"
+              >
+                📈 {growthHeading}
+              </span>
               <svg
                 className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${growthTableOpen ? "rotate-180" : ""}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
@@ -1526,6 +1656,12 @@ export default function CompoundingTool() {
                       : `+${pct}%`;
                     const isHovered = hoveredDataIndex === idx;
                     const isBarHovered = barHoveredIdx === idx;
+                    const isSummaryInterestHovered =
+                      hoveredSummaryValue?.idx === idx &&
+                      hoveredSummaryValue.column === "interest";
+                    const isSummaryMoneyHovered =
+                      hoveredSummaryValue?.idx === idx &&
+                      hoveredSummaryValue.column === "money";
                     const rowActive = isHovered || isBarHovered;
                     const yearInterest = idx === 0
                       ? null
@@ -1553,12 +1689,34 @@ export default function CompoundingTool() {
                         }}
                       >
                         <span className={`cell-hover text-[12px] ${rowActive ? "font-semibold" : ""}`} style={{ color: rowActive ? "#111827" : "#9ca3af" }}>{age}</span>
-                        <span className={`cell-hover text-[12px] tabular-nums ${rowActive ? "font-semibold" : ""}`} style={{ color: rowActive ? "#111827" : "#9ca3af" }}>{yearInterest === null ? "—" : `$${yearInterest.toLocaleString()}`}</span>
+                        <span
+                          data-testid={`growth-interest-${age}`}
+                          className={`cell-hover text-[12px] tabular-nums ${rowActive ? "font-semibold" : ""}`}
+                          style={{
+                            color:
+                              rowActive || isSummaryInterestHovered
+                                ? "#111827"
+                                : "#9ca3af",
+                            backgroundColor: isSummaryInterestHovered
+                              ? VALUE_HIGHLIGHT
+                              : undefined,
+                          }}
+                        >
+                          {yearInterest === null ? "-" : `$${yearInterest.toLocaleString()}`}
+                        </span>
                          <span
+                           data-testid={`growth-money-${age}`}
                            className={`cell-hover text-[12px] tabular-nums ${rowActive ? "font-semibold" : ""}`}
                            style={{
-                             color: rowActive ? "#111827" : "#9ca3af",
-                             backgroundColor: isHovered && hoveredValueSeries === tableSeries.key ? VALUE_HIGHLIGHT : undefined,
+                              color:
+                                rowActive || isSummaryMoneyHovered
+                                  ? "#111827"
+                                  : "#9ca3af",
+                              backgroundColor:
+                                isSummaryMoneyHovered ||
+                                (isHovered && hoveredValueSeries === tableSeries.key)
+                                  ? VALUE_HIGHLIGHT
+                                  : undefined,
                            }}
                          >
                            ${Math.round(value).toLocaleString()}
@@ -1622,6 +1780,10 @@ export default function CompoundingTool() {
         showBlue={showBlue}
         onAgeChange={handleAgeChange}
         onClose={handleExplainerClose}
+      />
+      <MoneyExplainer
+        open={moneyExplainerOpen}
+        onClose={handleMoneyExplainerClose}
       />
       <LearnMode open={learnOpen} onClose={handleLearnClose} onStage={handleLearnStage} />
       <QuizMode

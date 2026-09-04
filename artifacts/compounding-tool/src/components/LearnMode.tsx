@@ -25,6 +25,8 @@ export interface LearnStageState {
   growthVisible?: boolean;
   /** open or close the "What is compounding?" explainer dialog */
   explainerOpen?: boolean;
+  /** open or close the "What is money?" explainer dialog */
+  moneyExplainerOpen?: boolean;
 }
 
 export interface LearnStep {
@@ -69,28 +71,28 @@ const STEPS: LearnStep[] = [
   {
     target: "chart",
     title: "The Shape of Growth",
-    body: "Age 10 on the left, age 60 on the right. Right now only the pink savings line is showing, and it is almost straight. That is money added to a pile with nothing earned on top.",
+    body: "The chart runs from age 10 to age 60. Only the pink line is on: starting money plus each year’s deposits, with no interest. It rises in steps as you add money, and stays flat compared with compounding. (Short cut: left and right arrow keys)",
     place: "insideBottomRight",
     nudge: { y: -90 },
   },
   {
     target: "inputs",
     title: "What You Add Each Year",
-    body: "These five boxes are how much you invest each year during your teens, twenties, thirties, forties and fifties. Most people can add more as they get older.",
+    body: "These boxes are how much you invest each year across your lifetime. Change these values to see how your investments change over time.",
     place: "above",
     nudge: { y: -15 },
   },
   {
     target: "green",
     title: "Your Lifetime Investments",
-    body: "The green box adds up every dollar you invest across your whole life. Keep an eye on it. It stays surprisingly small compared to what you end up with.",
+    body: "The green box adds up every dollar you invest across your whole life. It stays small compared to what that same money could become through compounding.",
     place: "above",
     nudge: { y: -15 },
   },
   {
     target: "valuecard",
     title: "Savings Only",
-    body: "Right now only plain Savings is switched on, so this box is pink. It shows what your pile is worth at the age you have picked, with nothing earned on top of what you've added over the years.",
+    body: "With Savings-only turned on, this pink box shows your starting money plus all your deposits, you don’t earn any interest if all you do is save. (Shortcut key: 1)",
     stage: { showSavings: true, showBlack: false, showBlue: false, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },
@@ -99,7 +101,7 @@ const STEPS: LearnStep[] = [
   {
     target: "valuecard",
     title: "The Power of Compounding",
-    body: "Now switch on the grey Compounding button. Same money, same years, but your money starts earning on top of what it already earned. This box turns grey and shows how much bigger that is than just savings alone.",
+    body: "With Compounding-only turned on, this grey box shows your starting money grown with interest each year. Notice how much larger it is compared to Savings alone. (Shortcut key: 2)",
     stage: { showSavings: true, showBlack: true, showBlue: false, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },
@@ -109,7 +111,7 @@ const STEPS: LearnStep[] = [
     target: "valuecard",
     // non-breaking space keeps "Yearly Investments" together on the second line
     title: "Compounding + Yearly Investments",
-    body: "Now add your yearly investments on top. Compounding alone only grows the money you started with. This grows that money and every new dollar you add, because each one starts compounding the moment it goes in. That is why the blue number is so much bigger.",
+    body: "This box shows how powerful compounding is when you pair it with additional investments each year on top of compounding. Notice how much larger it is than Compounding alone and how it dwarfs Savings. (Shortcut key: 3)",
     stage: { showSavings: true, showBlack: true, showBlue: true, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },
@@ -118,14 +120,14 @@ const STEPS: LearnStep[] = [
   {
     target: "modes",
     title: "Three Ways to Grow Money",
-    body: "This grey box shows all three side by side at the age you picked. Pink is plain saving, black is compounding on its own, and blue is compounding plus what you add each year.",
+    body: "This box shows all three side by side at the age you have selected. Pink is plain saving, black is compounding on its own, and blue is compounding plus what you add each year.",
     place: "above",
     nudge: { y: -15 },
   },
   {
     target: "delta1",
     title: "What Compounding Is Worth",
-    body: "This first difference is compounding on its own minus plain saving. It is the money you get purely from letting growth build on growth, without adding a single extra dollar.",
+    body: "This first difference is compounding on its own minus savings. It is the money you get purely from letting growth build on growth, without adding a single extra dollar.",
     stage: { showDelta: "blackPink", ageIndex: 50 },
     place: "above",
   },
@@ -139,7 +141,7 @@ const STEPS: LearnStep[] = [
   {
     target: "lessons",
     title: "The Lessons",
-    body: "Six short ideas worth remembering. The most important one is the third: start as early as you can, because time does most of the work.",
+    body: "Seven key ideas worth remembering. The most important one is the third: start as early as you can, because time does most of the work.",
     stage: { lessonsSummaryOpen: true, showDelta: null, growthVisible: true },
     place: "above",
   },
@@ -160,10 +162,22 @@ const STEPS: LearnStep[] = [
   {
     target: "whatis",
     title: "Same Start, Three Kinds of Growth",
-    body: "Click this any time to open the three jars. All of them begin with the same money, and the arrows step you through the years so you can watch the three numbers pull apart.",
+    body: "Click here to see a visual comparison of your 3 jars of money. All of them begin with the same money, and the arrows step you through the years so you can watch the three numbers pull apart. (Shortcut key: F)",
     stage: { lessonsSummaryOpen: true, explainerOpen: true },
     place: "above",
     alsoOutline: ["explainer"],
+  },
+  {
+    target: "money-explainer",
+    title: "An Intro to Money",
+    body: "Many kids never learn what money is or why it matters. They learn that money is something you spend, that it lets you buy things, and that you should save it. All of that is true - but those ideas describe what you do with money, not what money is. When you start with first principles - understanding what money actually represents - you can make better decisions with it. That is the foundation for becoming a responsible saver, spender, and investor.",
+    stage: {
+      lessonsSummaryOpen: true,
+      explainerOpen: false,
+      moneyExplainerOpen: true,
+    },
+    place: "above",
+    alsoOutline: ["money-link"],
   },
 ];
 
@@ -195,6 +209,9 @@ export function LearnMode({ open, onClose, onStage }: LearnModeProps) {
 
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
+  const shortcutMatch = current.body.match(
+    /^(.*?)(\((?:Short cut|Shortcut key): [^)]+\))$/,
+  );
 
   const calloutRef = useRef<HTMLElement | null>(null);
 
@@ -266,7 +283,7 @@ export function LearnMode({ open, onClose, onStage }: LearnModeProps) {
     if (!open) return;
     let cancelled = false;
 
-    if (current.stage) onStageRef.current(current.stage);
+    onStageRef.current(current.stage ?? {});
 
     const timer = window.setTimeout(() => {
       if (cancelled) return;
@@ -354,12 +371,14 @@ export function LearnMode({ open, onClose, onStage }: LearnModeProps) {
         <div
           key={i}
           aria-hidden="true"
-          className="absolute rounded-md border-2 border-blue-400"
+          className="absolute rounded-xl border border-blue-500/70 bg-blue-50/20"
           style={{
             top: spot.top - 6,
             left: spot.left - 6,
             width: spot.width + 12,
             height: spot.height + 12,
+            boxShadow:
+              "0 0 0 4px rgba(59, 130, 246, 0.10), 0 8px 24px rgba(30, 64, 175, 0.10)",
           }}
         />
       ))}
@@ -369,45 +388,71 @@ export function LearnMode({ open, onClose, onStage }: LearnModeProps) {
           ref={calloutRef}
           role="dialog"
           aria-labelledby="learn-mode-title"
-          className="pointer-events-auto absolute w-[340px] border border-slate-200 bg-white p-[22px] shadow-2xl"
-          style={{ left: callout.x, top: callout.y }}
+          className="pointer-events-auto absolute w-[340px] overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl"
+          style={{
+            left: callout.x,
+            top: callout.y,
+            boxShadow:
+              "0 18px 45px rgba(15, 23, 42, 0.16), 0 0 0 4px rgba(59, 130, 246, 0.08)",
+          }}
         >
-          <div className="flex items-start justify-between gap-3">
-            <h2 id="learn-mode-title" className="text-base text-gray-900">
-              {current.title}
-            </h2>
-            <button
-              type="button"
-              aria-label="Close the walkthrough"
-              onClick={onClose}
-              className="-mr-2 -mt-2 grid h-8 w-8 shrink-0 place-items-center text-lg leading-none text-slate-400 transition hover:bg-slate-50 hover:text-slate-900"
-            >
-              ×
-            </button>
-          </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{current.body}</p>
-
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-xs text-slate-400">
-              {step + 1} of {STEPS.length}
-            </span>
-            <div className="flex items-center gap-2">
+          <div aria-hidden="true" className="h-1 bg-gradient-to-r from-blue-400 via-sky-300 to-blue-500" />
+          <div className="p-[22px]">
+            <div className="flex items-start justify-between gap-3">
+              <h2 id="learn-mode-title" className="text-base text-gray-900">
+                {current.title}
+              </h2>
               <button
                 type="button"
+                aria-label="Close the walkthrough"
                 onClick={onClose}
-                className="px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:text-slate-900"
+                className="-mr-2 -mt-2 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-lg leading-none text-slate-400 transition hover:bg-blue-50 hover:text-slate-900"
               >
-                Close
+                ×
               </button>
-              {!isLast && (
+            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {shortcutMatch ? (
+                <>
+                  {shortcutMatch[1].trimEnd()}{" "}
+                  <span className="inline-block whitespace-nowrap rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-xs font-semibold leading-5 text-slate-600">
+                    {shortcutMatch[2]}
+                  </span>
+                </>
+              ) : (
+                current.body
+              )}
+            </p>
+
+            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+              <div
+                className="h-full rounded-full bg-blue-400 transition-[width] duration-200"
+                style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+              />
+            </div>
+
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs text-slate-400">
+                {step + 1} of {STEPS.length}
+              </span>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={goNext}
-                  className="bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-700"
+                  onClick={onClose}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
                 >
-                  Next
+                  Close
                 </button>
-              )}
+                {!isLast && (
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-700"
+                  >
+                    Next
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </section>
