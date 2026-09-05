@@ -167,7 +167,7 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 To understand how money works, imagine you are a squirrel. From a
                 squirrel’s perspective, nuts are valuable because they represent
                 survival and health. That is why squirrels store nuts away for the
-                winter - they are preserving value to use at a later time.
+                 winter—they are preserving value to use at a later time.
               </p>
               <p>
                 People do the same thing. We just don’t measure value in nuts. We
@@ -182,9 +182,15 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                   aria-controls="money-value-details"
                   aria-expanded={detailsExpanded}
                   onClick={() => setDetailsExpanded((expanded) => !expanded)}
-                  className="font-semibold text-blue-700 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-900 hover:decoration-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
+                  className="group relative cursor-pointer font-semibold text-blue-700 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-900 hover:decoration-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
                 >
                   control, power, time, freedom, and knowledge
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-gray-200 bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                  >
+                    Learn More
+                  </span>
                 </button>
                 .
                 Everything people value fits into one or a combination of these
@@ -195,7 +201,7 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
               <p>
                 But people can do something a squirrel cannot. We can trade value.
                 That is what money is for. It lets us store value and trade it for
-                another type of value. Example: I can trade my time (mowing my
+                 another type of value. For example, I can trade my time (mowing my
                 neighbour’s lawn) for money. I can then trade that money for
                 someone else’s knowledge (buying a dance class).
               </p>
@@ -226,7 +232,7 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 />
                 <span>
                   <strong className="font-semibold text-slate-900">Power</strong>{" "}
-                  - being able to direct other people’s choices. A gardener chooses
+                  - being able to influence your own or other people’s choices. A gardener chooses
                   what to plant. The owner of the company decides when and where the
                   gardener will work.
                 </span>
@@ -238,9 +244,9 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 />
                 <span>
                   <strong className="font-semibold text-slate-900">Time</strong> -
-                  hours that belong to you. The most valued resource we have. Once
-                  it&apos;s gone we can never get it back. Paying for a bus ride to
-                  school gives you back the hour you would have spent walking.
+                   hours that belong to you. It is the most valuable resource we have. Once
+                   it&apos;s gone, we can never get it back. Paying for a bus ride to
+                  school saves you the hour you would have spent walking.
                 </span>
               </p>
               <p className="flex items-start gap-3">
@@ -250,8 +256,8 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 />
                 <span>
                   <strong className="font-semibold text-slate-900">Freedom</strong>{" "}
-                  - being able to make your own choices. Being able to go, stay, or
-                  switch - not being stuck. Control and power live inside freedom.
+                   - being able to make your own choices. Being able to go, stay, or
+                   switch—not being stuck. Control and power live inside freedom.
                   Freedom is whether you get to use them.
                 </span>
               </p>
@@ -263,8 +269,9 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 <span>
                   <strong className="font-semibold text-slate-900">Knowledge</strong>{" "}
                   - information you can actually use. Knowing how to fix a bike, play
-                  a guitar, or draw is knowledge. Reading about it is only
-                  information until you can do it.
+                   a guitar, or draw is knowledge. Reading about it is only
+                   information until you can do it. You can spend or trade your time and
+                   money to acquire knowledge, then sell that knowledge for more money.
                 </span>
               </p>
               </div>

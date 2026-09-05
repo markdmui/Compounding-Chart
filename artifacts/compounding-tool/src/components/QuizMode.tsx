@@ -28,6 +28,28 @@ function buildQuestions(principal: number, annualRate: number): QuizQuestion[] {
     why: "The principal is your starting money. On this chart it is the number in the box at the top, and all three lines begin there.",
   },
   {
+    question: "What is money?",
+    choices: [
+      "A way to store and trade value",
+      "A type of interest your money earns",
+      "The amount you invest every year",
+      "A fee you pay to keep your money safe",
+    ],
+    answer: 0,
+    why: "Money lets people store value for later and trade it for another type of value. It is how we exchange things like time, freedom, knowledge, control, and power.",
+  },
+  {
+    question: "What are the 5 things people value?",
+    choices: [
+      "Control, power, time, freedom, and knowledge",
+      "Money, interest, savings, debt, and taxes",
+      "Food, shelter, transport, work, and leisure",
+      "Principal, rate, growth, deposits, and profit",
+    ],
+    answer: 0,
+    why: "People value control, power, time, freedom, and knowledge. Money helps us store and trade these kinds of value.",
+  },
+  {
     question: "What is compounding?",
     choices: [
       "Adding the same amount of money every single year",
@@ -97,7 +119,7 @@ function buildQuestions(principal: number, annualRate: number): QuizQuestion[] {
   },
   {
     question:
-      "What happens if you never add another dollar and just leave your money invested?",
+      "What happens to your money when you stop adding new dollars but leave your original investment compounding?",
     choices: [
       "It stops growing completely",
       "It slowly disappears",
@@ -167,6 +189,21 @@ function shuffle<T>(items: T[]): T[] {
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;
+}
+
+function renderChoice(choice: string) {
+  return choice.split(/([÷+×])/).map((part, index) =>
+    /^[÷+×]$/.test(part) ? (
+      <span
+        key={`${part}-${index}`}
+        className="text-lg"
+      >
+        {part}
+      </span>
+    ) : (
+      part
+    ),
+  );
 }
 
 // Fresh order every run: questions shuffled, and the choices inside each one
@@ -245,6 +282,35 @@ export function QuizMode({ open, principal, annualRate, onClose }: QuizModeProps
         setWrongPicks([]);
         setSolved(false);
         setFinished(false);
+        return;
+      }
+
+      if (
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        ["1", "2", "3", "4"].includes(event.key)
+      ) {
+        const choiceIndex = Number(event.key) - 1;
+        const choiceButton = dialogRef.current?.querySelector<HTMLButtonElement>(
+          `[data-quiz-choice-index="${choiceIndex}"]`,
+        );
+        if (choiceButton && !choiceButton.disabled) {
+          event.preventDefault();
+          choiceButton.click();
+        }
+        return;
+      }
+
+      if (event.key === "Enter") {
+        const nextButton = dialogRef.current?.querySelector<HTMLButtonElement>(
+          "[data-quiz-next]",
+        );
+        if (nextButton && event.target !== nextButton) {
+          event.preventDefault();
+          nextButton.click();
+        }
         return;
       }
 
@@ -450,11 +516,30 @@ export function QuizMode({ open, principal, annualRate, onClose }: QuizModeProps
                     <button
                       key={index}
                       type="button"
+                      data-testid={`quiz-choice-${index}`}
+                      data-quiz-choice-index={index}
                       onClick={() => choose(index)}
                       disabled={locked}
                       className={`border px-4 py-3 text-left text-sm leading-snug transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${tone} ${locked ? "cursor-default" : "cursor-pointer"}`}
                     >
-                      {choice}
+                      <span className="flex items-center gap-3">
+                        <span className="group relative inline-flex shrink-0">
+                          <span
+                            data-testid={`quiz-choice-key-${index + 1}`}
+                            aria-hidden="true"
+                            className="grid h-6 w-6 place-items-center border border-current/30 text-xs font-semibold leading-none"
+                          >
+                            {index + 1}
+                          </span>
+                          <span
+                            role="tooltip"
+                            className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-gray-200 bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100"
+                          >
+                            Shortcut: {index + 1}
+                          </span>
+                        </span>
+                        <span>{renderChoice(choice)}</span>
+                      </span>
                     </button>
                   );
                 })}
@@ -474,11 +559,18 @@ export function QuizMode({ open, principal, annualRate, onClose }: QuizModeProps
                   <p className="mt-1 text-sm leading-6 text-slate-600">{current.why}</p>
                   <button
                     type="button"
+                    data-quiz-next
                     onClick={next}
                     className="mt-4 bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
                   >
                     {isLast ? "See my score" : "Next question"}
                   </button>
+                  <span
+                    data-testid="quiz-enter-shortcut"
+                    className="ml-1 inline-block whitespace-nowrap rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-xs font-semibold leading-5 text-slate-600"
+                  >
+                    Enter key
+                  </span>
                 </div>
               )}
             </div>

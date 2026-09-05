@@ -1,4 +1,11 @@
-import { useState, useCallback, useRef, useEffect, Fragment } from "react";
+import {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  Fragment,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   LineChart,
   Line,
@@ -15,6 +22,7 @@ import { CompoundingExplainer } from "@/components/CompoundingExplainer";
 import { MoneyExplainer } from "@/components/MoneyExplainer";
 import { QuizMode } from "@/components/QuizMode";
 import { LearnMode, type LearnStageState } from "@/components/LearnMode";
+import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 
 const YEARS = 50;
 const STARTING_AGE = 10;
@@ -22,6 +30,7 @@ const STARTING_AGE = 10;
 const BLUE = "#3b82f6";
 const BLACK = "#374151";
 const BLACK_BAR = "#6b7280";
+const BLACK_DOT = "#9ca3af";
 const PINK = "#f472b6";
 const VALUE_HIGHLIGHT = "#ffff99";
 const DOT_HIGHLIGHT = "#d1d5db";
@@ -37,6 +46,55 @@ type GrowthBarSeries = {
   lightColor: string;
   activeColor: string;
 };
+
+function ShortcutTooltip({ shortcut }: { shortcut: "C" | "M" }) {
+  return (
+    <span
+      role="tooltip"
+      className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-gray-200 bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+    >
+      Shortcut: {shortcut}
+    </span>
+  );
+}
+
+function TimeModeToggle({
+  isYearMode,
+  onToggle,
+}: {
+  isYearMode: boolean;
+  onToggle: () => void;
+}) {
+  const [isActive, setIsActive] = useState(false);
+  const nextModeLabel = isYearMode ? "Age" : "Year";
+
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        data-testid="growth-time-header"
+        aria-label={`Show table by ${nextModeLabel.toLowerCase()}`}
+        aria-pressed={isYearMode}
+        className="text-[12px] text-gray-400 font-semibold cursor-pointer transition-colors duration-150 hover:text-gray-900 hover:underline hover:underline-offset-2 focus-visible:text-gray-900 focus-visible:underline focus-visible:underline-offset-2"
+        onMouseEnter={() => setIsActive(true)}
+        onMouseLeave={() => setIsActive(false)}
+        onFocus={() => setIsActive(true)}
+        onBlur={() => setIsActive(false)}
+        onClick={onToggle}
+      >
+        {isYearMode ? "Year" : "Age"}
+      </button>
+      {isActive && (
+        <span
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-gray-200 bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 shadow-sm"
+        >
+          {nextModeLabel}
+        </span>
+      )}
+    </span>
+  );
+}
 
 interface ContributionsByDecade {
   "10s": number;
@@ -130,7 +188,7 @@ function formatCurveDeltaMoney(value: number) {
 
 function HeaderHint({ label, hint }: { label: string; hint: string }) {
   return (
-    <span className="relative group text-[11px] text-gray-400 font-semibold uppercase cursor-help transition-colors duration-150 group-hover:text-gray-900 hover:text-gray-900">
+    <span className="relative group text-[12px] text-gray-400 font-semibold cursor-help transition-colors duration-150 group-hover:text-gray-900 hover:text-gray-900">
       {label}
       <span className="pointer-events-none absolute left-0 top-full z-50 mt-1.5 block w-72 rounded-xl border border-gray-100 bg-white px-4 py-3 normal-case font-normal tracking-normal text-[13px] leading-snug text-gray-700 shadow-lg opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
         {hint}
@@ -141,11 +199,11 @@ function HeaderHint({ label, hint }: { label: string; hint: string }) {
 
 const EXPLANATIONS: Record<string, string> = {
   blue:
-    "Compounding supercharged with yearly investments. Notice how much larger this is - that's the power of investing more money into the system each year.",
+    "Compounding is supercharged with yearly investments. Notice how much larger this is—that’s the power of adding additional money each year to your compounding investment.",
   black:
-    "The black line shows your money compounding at the set interest rate with no extra additions. Each year, interest grows on top of prior growth - growth on top of growth.",
+    "The black line shows your money compounding at the set interest rate with no extra additions. Each year, interest grows on top of prior growth—growth on top of growth.",
   pink:
-    "The pink line is pure linear savings - no compounding, just adding $200/year to your principal. Good, but nowhere near the power of compound interest.",
+    "The pink line is pure linear savings—no compounding, just adding your yearly contributions to your principal. Good, but nowhere near the power of compound interest.",
 };
 
 interface NumberInputProps {
@@ -155,6 +213,7 @@ interface NumberInputProps {
   suffix?: string;
   min?: number;
   step?: number;
+  wheelStep?: number;
   className?: string;
   inputClassName?: string;
   dataTour?: string;
@@ -167,6 +226,7 @@ function InlineNumberInput({
   suffix,
   min = 0,
   step = 1,
+  wheelStep = step,
   className = "",
   inputClassName = "",
   dataTour,
@@ -193,6 +253,17 @@ function InlineNumberInput({
           const n = parseFloat(e.target.value);
           if (!isNaN(n)) onChange(n);
         }}
+         onWheel={(e) => {
+           e.preventDefault();
+           const current = parseFloat(local);
+           const base = Number.isFinite(current) ? current : value;
+           const next = Math.max(
+             min,
+             base + (e.deltaY < 0 ? wheelStep : -wheelStep),
+           );
+           setLocal(String(next));
+           onChange(next);
+         }}
         onBlur={() => {
           const n = parseFloat(local);
           if (isNaN(n) || n < min) {
@@ -271,14 +342,20 @@ function DecadeInput({ label, value, onChange, onSyncChange, step = 100, color }
   const wrapperRef = useRef<HTMLDivElement>(null);
   const incrementRef = useRef(increment);
   const decrementRef = useRef(decrement);
+  const syncChangeRef = useRef(onSyncChange);
   incrementRef.current = increment;
   decrementRef.current = decrement;
+  syncChangeRef.current = onSyncChange;
 
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
+      if (e.ctrlKey && syncChangeRef.current) {
+        syncChangeRef.current(e.deltaY < 0 ? step : -step);
+        return;
+      }
       if (e.deltaY < 0) incrementRef.current(); else decrementRef.current();
     };
     el.addEventListener("wheel", handler, { passive: false });
@@ -290,8 +367,8 @@ function DecadeInput({ label, value, onChange, onSyncChange, step = 100, color }
       <label className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
         {label}
       </label>
-      <div ref={wrapperRef} className="relative w-full">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium z-10 pointer-events-none">
+        <div ref={wrapperRef} className="decade-input-wrapper relative w-full">
+        <span className="absolute left-[11px] top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium z-10 pointer-events-none">
           $
         </span>
         <input
@@ -301,7 +378,7 @@ function DecadeInput({ label, value, onChange, onSyncChange, step = 100, color }
           step={1}
           value={editing ? draft : value}
           onChange={(e) => setDraft(e.target.value)}
-          className="w-full pl-6 pr-7 py-1.5 bg-white border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-700 focus:outline-none transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-full pl-[23px] pr-7 py-1.5 bg-white border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-700 focus:outline-none transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           onFocus={(e) => {
             setEditing(true);
             setDraft("");
@@ -347,16 +424,21 @@ function DecadeInput({ label, value, onChange, onSyncChange, step = 100, color }
 }
 
 const DEFAULTS = {
+  initialInvestment: 1000,
+  annualRate: 10,
+  contributions: { "10s": 200, "20s": 200, "30s": 200, "40s": 200, "50s": 200 } as ContributionsByDecade,
+  showSavings: true,
+  showBlack: false,
+  showBlue: false,
+};
+
+const CONTROL_ONE_VALUES = {
   initialInvestment: 7000,
   annualRate: 15,
   contributions: { "10s": 200, "20s": 500, "30s": 1000, "40s": 2000, "50s": 5000 } as ContributionsByDecade,
   showSavings: true,
-};
-
-const RESET_SETTINGS = {
-  initialInvestment: 1000,
-  annualRate: 10,
-  contributions: { "10s": 200, "20s": 200, "30s": 200, "40s": 200, "50s": 200 } as ContributionsByDecade,
+  showBlack: true,
+  showBlue: true,
 };
 
 export default function CompoundingTool() {
@@ -365,15 +447,16 @@ export default function CompoundingTool() {
   const [moneyExplainerOpen, setMoneyExplainerOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
   const [learnOpen, setLearnOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [forcedDelta, setForcedDelta] = useState<"blackPink" | "blueBlack" | null>(null);
   const [growthSectionVisible, setGrowthSectionVisible] = useState(true);
   const [lessonsSummaryOpen, setLessonsSummaryOpen] = useState(true);
   const [growthTableOpen, setGrowthTableOpen] = useState(true);
   const [annualRate, setAnnualRate] = useState(DEFAULTS.annualRate);
   const [contributions, setContributions] = useState<ContributionsByDecade>(DEFAULTS.contributions);
-  const [showSavings, setShowSavings] = useState(true);
-  const [showBlue, setShowBlue] = useState(true);
-  const [showBlack, setShowBlack] = useState(true);
+  const [showSavings, setShowSavings] = useState(DEFAULTS.showSavings);
+  const [showBlue, setShowBlue] = useState(DEFAULTS.showBlue);
+  const [showBlack, setShowBlack] = useState(DEFAULTS.showBlack);
   const [hoveredDataIndex, setHoveredDataIndex] = useState<number>(0);
   const [axisHoveredIndex, setAxisHoveredIndex] = useState<number | null>(null);
   const [chartHoveredIndex, setChartHoveredIndex] = useState<number | null>(null);
@@ -383,6 +466,8 @@ export default function CompoundingTool() {
   const [hoveredSummaryValue, setHoveredSummaryValue] =
     useState<SummaryHoverTarget>(null);
   const [tooltipPos, setTooltipPos] = useState<{ left: number; top: number } | null>(null);
+  const [xAxisMode, setXAxisMode] = useState<"age" | "year">("age");
+  const [xAxisLabelActive, setXAxisLabelActive] = useState(false);
   const chartSectionRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartScaleRef = useRef<{
@@ -406,6 +491,7 @@ export default function CompoundingTool() {
     setQuizOpen(true);
   }, []);
   const handleQuizClose = useCallback(() => setQuizOpen(false), []);
+  const handleShortcutsClose = useCallback(() => setShortcutsOpen(false), []);
   const handleLearnClose = useCallback(() => {
     setLearnOpen(false);
     setForcedDelta(null);
@@ -414,6 +500,12 @@ export default function CompoundingTool() {
   const handleAgeChange = useCallback((index: number) => {
     setHoveredDataIndex(Math.min(YEARS, Math.max(0, index)));
   }, []);
+  const handleLearnChartNavigate = useCallback(
+    (delta: number) => {
+      handleAgeChange(hoveredDataIndex + delta);
+    },
+    [handleAgeChange, hoveredDataIndex],
+  );
   const valueHoverHandlers = useCallback(
     (series: ValueSeries) => ({
       onMouseEnter: () => setHoveredValueSeries(series),
@@ -428,7 +520,7 @@ export default function CompoundingTool() {
     const handleExplainerShortcut = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
       if (
-        key !== "f" &&
+        key !== "c" &&
         key !== "m" ||
         event.ctrlKey ||
         event.metaKey ||
@@ -448,7 +540,7 @@ export default function CompoundingTool() {
         return;
       }
 
-      if (key === "f" && moneyExplainerOpen) {
+      if (key === "c" && moneyExplainerOpen) {
         event.preventDefault();
         setMoneyExplainerOpen(false);
         setExplainerOpen(true);
@@ -517,16 +609,46 @@ export default function CompoundingTool() {
     const handleSettingsShortcut = (event: KeyboardEvent) => {
       if (!event.ctrlKey || event.key !== "1") return;
       event.preventDefault();
-      setInitialInvestment(DEFAULTS.initialInvestment);
-      setAnnualRate(DEFAULTS.annualRate);
-      setContributions({ ...DEFAULTS.contributions });
-      setShowSavings(true);
-      setShowBlack(true);
-      setShowBlue(true);
+      setInitialInvestment(CONTROL_ONE_VALUES.initialInvestment);
+      setAnnualRate(CONTROL_ONE_VALUES.annualRate);
+      setContributions({ ...CONTROL_ONE_VALUES.contributions });
+      setShowSavings(CONTROL_ONE_VALUES.showSavings);
+      setShowBlack(CONTROL_ONE_VALUES.showBlack);
+      setShowBlue(CONTROL_ONE_VALUES.showBlue);
     };
 
     window.addEventListener("keydown", handleSettingsShortcut);
     return () => window.removeEventListener("keydown", handleSettingsShortcut);
+  }, []);
+
+  useEffect(() => {
+    const handleShortcutsShortcut = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() !== "k" ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.shiftKey
+      ) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      setShortcutsOpen((open) => !open);
+    };
+
+    window.addEventListener("keydown", handleShortcutsShortcut);
+    return () => window.removeEventListener("keydown", handleShortcutsShortcut);
   }, []);
 
   const rate = annualRate / 100;
@@ -598,7 +720,56 @@ export default function CompoundingTool() {
     contributions["50s"] * 11;
 
   const displayIdx = hoveredDataIndex ?? YEARS;
-  const displayAge = STARTING_AGE + displayIdx;
+  const isYearMode = xAxisMode === "year";
+  const timelineValue = (index: number) =>
+    isYearMode ? index : STARTING_AGE + index;
+  const timelineLabel = (index: number) =>
+    isYearMode
+      ? index === 0
+        ? "Year 0"
+        : `Year ${index}`
+      : `Age ${STARTING_AGE + index}`;
+  const summaryMilestoneHoverHandlers = (index: number) => ({
+    onMouseEnter: () =>
+      setHoveredSummaryValue({ idx: index, column: "money" as const }),
+    onMouseLeave: () => setHoveredSummaryValue(null),
+    onFocus: () =>
+      setHoveredSummaryValue({ idx: index, column: "money" as const }),
+    onBlur: () => setHoveredSummaryValue(null),
+    onClick: () => handleAgeChange(index),
+    onKeyDown: (event: ReactKeyboardEvent<HTMLSpanElement>) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      handleAgeChange(index);
+    },
+  });
+  const renderSummaryMilestone = (
+    index: number | null,
+    text: string,
+    testId: string,
+  ) => {
+    if (index === null) {
+      return <span className="font-semibold">{text}</span>;
+    }
+    const isHovered =
+      hoveredSummaryValue?.idx === index &&
+      hoveredSummaryValue.column === "money";
+    return (
+      <span
+        data-testid={testId}
+        role="button"
+        tabIndex={0}
+        aria-label={`Highlight ${timelineLabel(index)} total money on chart`}
+        className="inline-block cursor-pointer rounded-sm px-1 -mx-1 font-semibold tabular-nums transition-colors"
+        style={{
+          backgroundColor: isHovered ? VALUE_HIGHLIGHT : undefined,
+        }}
+        {...summaryMilestoneHoverHandlers(index)}
+      >
+        {text}
+      </span>
+    );
+  };
   const activeSummaryData = showBlue ? blueData : showBlack ? blackData : pinkData;
   const activeSummaryValue = activeSummaryData[displayIdx];
   const activeSummaryLabel = showBlue
@@ -630,7 +801,9 @@ export default function CompoundingTool() {
     ? "Compounding plus Additional Investments Over Time"
     : showBlack
       ? "Compounding Growth Over Time"
-      : "Savings Growth Over Time";
+      : showSavings
+        ? "Savings Growth Over Time"
+        : "Growth Over Time";
   const pinkAtDisplay = pinkData[displayIdx];
   const percentDifference = !isSavingsOnly && pinkAtDisplay > 0
     ? Math.round(((activeSummaryValue - pinkAtDisplay) / pinkAtDisplay) * 100)
@@ -656,12 +829,12 @@ export default function CompoundingTool() {
   const yAxisTicks = Array.from({ length: Math.round(yMax / yStep) + 1 }, (_, i) => i * yStep);
 
   const handleReset = () => {
-    setInitialInvestment(RESET_SETTINGS.initialInvestment);
-    setAnnualRate(RESET_SETTINGS.annualRate);
-    setContributions({ ...RESET_SETTINGS.contributions });
-    setShowSavings(true);
-    setShowBlue(false);
-    setShowBlack(false);
+    setInitialInvestment(DEFAULTS.initialInvestment);
+    setAnnualRate(DEFAULTS.annualRate);
+    setContributions({ ...DEFAULTS.contributions });
+    setShowSavings(DEFAULTS.showSavings);
+    setShowBlue(DEFAULTS.showBlue);
+    setShowBlack(DEFAULTS.showBlack);
     setGrowthTableOpen(true);
   };
 
@@ -694,8 +867,9 @@ export default function CompoundingTool() {
   const updateContrib = useCallback(
     (key: keyof ContributionsByDecade) => (v: number) => {
       setContributions((prev) => ({ ...prev, [key]: v }));
+      if (showBlack) setShowBlue(true);
     },
-    []
+    [showBlack],
   );
   const updateAllContribs = useCallback((delta: number) => {
     setContributions((prev) => ({
@@ -705,19 +879,28 @@ export default function CompoundingTool() {
       "40s": Math.max(0, prev["40s"] + delta),
       "50s": Math.max(0, prev["50s"] + delta),
     }));
-  }, []);
+    if (showBlack) setShowBlue(true);
+  }, [showBlack]);
 
   const decadeConfigs: Array<{
     key: keyof ContributionsByDecade;
     label: string;
     step: number;
-  }> = [
-    { key: "10s", label: "Ages 10–19", step: 100 },
-    { key: "20s", label: "Ages 20–29", step: 100 },
-    { key: "30s", label: "Ages 30–39", step: 100 },
-    { key: "40s", label: "Ages 40–49", step: 100 },
-    { key: "50s", label: "Ages 50–59", step: 100 },
-  ];
+  }> = isYearMode
+    ? [
+        { key: "10s", label: "Years 1–9", step: 100 },
+        { key: "20s", label: "Years 10–19", step: 100 },
+        { key: "30s", label: "Years 20–29", step: 100 },
+        { key: "40s", label: "Years 30–39", step: 100 },
+        { key: "50s", label: "Years 40–50", step: 100 },
+      ]
+    : [
+        { key: "10s", label: "Ages 10–19", step: 100 },
+        { key: "20s", label: "Ages 20–29", step: 100 },
+        { key: "30s", label: "Ages 30–39", step: 100 },
+        { key: "40s", label: "Ages 40–49", step: 100 },
+        { key: "50s", label: "Ages 50–59", step: 100 },
+      ];
 
   const renderCustomLegend = () => {
     const items = [
@@ -731,13 +914,13 @@ export default function CompoundingTool() {
         key: "black",
         color: BLACK,
         label: `$${initialInvestment.toLocaleString()} + Interest Only`,
-        always: hasContributions,
+        always: showBlack,
       },
       {
         key: "blue",
         color: BLUE,
         label: `$${initialInvestment.toLocaleString()}+ Yearly Investments`,
-        always: true,
+        always: showBlue,
       },
     ].filter((i) => i.always);
 
@@ -762,6 +945,8 @@ export default function CompoundingTool() {
               setHoveredLegend(null);
               setTooltipPos(null);
             }}
+            onFocus={() => setHoveredLegend(item.key)}
+            onBlur={() => setHoveredLegend(null)}
           >
             <span
               className="inline-block w-3 h-3 rounded-full"
@@ -775,8 +960,8 @@ export default function CompoundingTool() {
   };
 
   return (
-    <div className="min-h-screen bg-white p-4 md:p-5">
-      <div className="w-full px-[50px]">
+    <div className="flex min-h-screen bg-white p-4 md:p-5">
+      <div className="my-auto w-full px-[50px]">
         {/* Header */}
         <div className="relative mb-4 md:mb-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
           <button
@@ -828,6 +1013,7 @@ export default function CompoundingTool() {
             suffix="%"
             min={0}
             step={0.5}
+            wheelStep={1}
             className="text-lg md:text-xl"
             inputClassName="w-[2ch] text-gray-900 text-lg md:text-xl"
           />
@@ -860,13 +1046,18 @@ export default function CompoundingTool() {
                   }}
                 >
                   {hoveredLegend === "pink"
-                    ? `The pink line is pure linear savings - no compounding, just adding your yearly contributions to your principal. Good, but nowhere near the power of compound interest.`
+                    ? "The pink line is pure linear savings—no compounding, just adding your yearly contributions to your principal. Good, but nowhere near the power of compound interest."
                     : EXPLANATIONS[hoveredLegend]}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <div ref={chartContainerRef} className="relative h-[32vh] md:h-[38vh] xl:h-[44vh] min-h-[220px] max-h-[520px] w-full">
+            <div
+              ref={chartContainerRef}
+              data-testid="chart-curve-area"
+              data-highlighted-curve={hoveredValueSeries ?? hoveredLegend ?? undefined}
+              className="chart-curve-area relative h-[32vh] md:h-[38vh] xl:h-[44vh] min-h-[220px] max-h-[520px] w-full"
+            >
               {/* Floating curve values follow the selected point */}
               {(() => {
                 const idx = hoveredDataIndex;
@@ -874,7 +1065,7 @@ export default function CompoundingTool() {
                 const blueVal: number = row.blue as number;
                 const blackVal: number = row.black as number;
                 const pinkVal: number = row.pink as number;
-                const label = `Age ${STARTING_AGE + idx}`;
+                const label = timelineLabel(idx);
                 const tooltipWidth = 170;
                 const tooltipEstHeight = 120;
                 const gap = 20;
@@ -992,7 +1183,12 @@ export default function CompoundingTool() {
                       const { x, y, payload, index } = props;
                       const isSelected = index === hoveredDataIndex;
                       const isHovered = index === axisHoveredIndex;
-                      const num = payload.value.replace("Age ", "");
+                       const num =
+                         xAxisMode === "age"
+                           ? payload.value.replace("Age ", "")
+                           : index === 0
+                             ? ""
+                             : String(index);
                       return (
                         <g
                           onMouseEnter={() => {
@@ -1010,6 +1206,7 @@ export default function CompoundingTool() {
                         >
                           <rect x={x - 10} y={y} width={20} height={20} fill="transparent" />
                           <text
+                            data-testid={`x-axis-tick-${index}`}
                             x={x}
                             y={y + 13}
                             textAnchor="middle"
@@ -1031,17 +1228,65 @@ export default function CompoundingTool() {
                     label={{
                       content: (props: unknown) => {
                         const { viewBox } = props as { viewBox: { x: number; y: number } };
-                        return (
-                          <text
-                            x={viewBox.x - 11}
-                            y={viewBox.y + 25}
-                            textAnchor="end"
-                            fontSize={10.5}
-                            fill="#9ca3af"
-                          >
-                            AGE
-                          </text>
-                        );
+                         const nextModeLabel = xAxisMode === "age" ? "Year" : "Age";
+                         return (
+                           <g
+                             role="button"
+                             tabIndex={0}
+                             aria-label={`Show chart by ${nextModeLabel.toLowerCase()}`}
+                             aria-pressed={xAxisMode === "year"}
+                             data-testid="x-axis-mode-toggle"
+                             onMouseEnter={() => setXAxisLabelActive(true)}
+                             onMouseLeave={() => setXAxisLabelActive(false)}
+                             onFocus={() => setXAxisLabelActive(true)}
+                             onBlur={() => setXAxisLabelActive(false)}
+                             onClick={() =>
+                               setXAxisMode((mode) => (mode === "age" ? "year" : "age"))
+                             }
+                             onKeyDown={(event) => {
+                               if (event.key !== "Enter" && event.key !== " ") return;
+                               event.preventDefault();
+                               setXAxisMode((mode) => (mode === "age" ? "year" : "age"));
+                             }}
+                             style={{ cursor: "pointer" }}
+                           >
+                             <text
+                               x={viewBox.x - 11}
+                               y={viewBox.y + 25}
+                               textAnchor="end"
+                               fontSize={10.5}
+                               fill={xAxisLabelActive ? "#111827" : "#9ca3af"}
+                               style={{
+                                 textDecoration: xAxisLabelActive
+                                   ? "underline"
+                                   : "none",
+                               }}
+                             >
+                               {xAxisMode.toUpperCase()}
+                             </text>
+                              {xAxisLabelActive && (
+                                <foreignObject
+                                  x={viewBox.x - 8}
+                                  y={viewBox.y - 25}
+                                  width={48}
+                                  height={26}
+                                   style={{
+                                     overflow: "visible",
+                                     pointerEvents: "none",
+                                     opacity: 1,
+                                   }}
+                                >
+                                  <div
+                                    role="tooltip"
+                                     className="whitespace-nowrap rounded-md border border-gray-200 bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 opacity-100 shadow-sm"
+                                     style={{ opacity: 1 }}
+                                  >
+                                    {nextModeLabel}
+                                  </div>
+                                </foreignObject>
+                              )}
+                           </g>
+                         );
                       }
                     }}
                   />
@@ -1061,6 +1306,7 @@ export default function CompoundingTool() {
                   {/* Blue line */}
                   {showBlue && (
                     <Line
+                      className="curve-blue"
                       type="monotone"
                       dataKey="blue"
                       stroke={BLUE}
@@ -1083,6 +1329,7 @@ export default function CompoundingTool() {
                   {/* Black line */}
                   {showBlack && (
                     <Line
+                      className="curve-black"
                       type="monotone"
                       dataKey="black"
                       stroke={BLACK}
@@ -1106,6 +1353,7 @@ export default function CompoundingTool() {
                   {/* Pink line */}
                   {showSavings && (
                     <Line
+                      className="curve-pink"
                       type="monotone"
                       dataKey="pink"
                       stroke={PINK}
@@ -1201,13 +1449,13 @@ export default function CompoundingTool() {
               {/* Left: Decade inputs + action buttons */}
               <div data-tour="inputs" className="w-full lg:w-2/5" onDoubleClick={(e) => e.stopPropagation()}>
                 <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">
-                  Yearly Investments by Age
+                  Yearly Investments by {isYearMode ? "Year" : "Age"}
                 </h2>
                 <div className="grid grid-cols-5 gap-1.5">
-                  {decadeConfigs.map(({ key, label, step }) => (
+                  {decadeConfigs.map(({ key, label, step }, index) => (
                     <DecadeInput
                       key={key}
-                      label={label}
+                      label={index === 0 ? label : label.replace(/^(Ages|Years)\s+/, "")}
                       value={contributions[key]}
                       onChange={updateContrib(key)}
                       onSyncChange={updateAllContribs}
@@ -1262,7 +1510,7 @@ export default function CompoundingTool() {
                 {/* Active mode - Return at age */}
                 <div data-tour="valuecard" className={`flex-1 ${summaryColors.background} rounded-2xl py-2 px-4 text-center flex flex-col justify-center`}>
                   <p data-testid="chart-facing-age" className={`text-xs ${summaryColors.label} mb-0.5 leading-snug`}>
-                    Age {displayAge}{showBlue || showBlack ? ":" : ""} {activeSummaryLabel} is
+                    {timelineLabel(displayIdx)}{showBlue || showBlack ? ":" : ""} {activeSummaryLabel} is
                   </p>
                   <p data-testid="summary-return-percentage" className={`text-base font-bold ${summaryColors.value}`}>
                     {percentDifference !== null
@@ -1281,7 +1529,7 @@ export default function CompoundingTool() {
                 {/* Gray - Live hover data broken into 3 sub-columns */}
                 {(() => {
                   const idx = hoveredDataIndex ?? YEARS;
-                  const ageLabel = `Age ${STARTING_AGE + idx}`;
+                  const ageLabel = timelineLabel(idx);
                   const blueVal = blueData[idx];
                   const blackVal = blackData[idx];
                   const pinkVal = pinkData[idx];
@@ -1310,7 +1558,7 @@ export default function CompoundingTool() {
                           <p className="text-[13px] text-gray-500 leading-snug">Compounding<br />Only</p>
                           {showBlack && (
                             <div className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
                               <span
                                 data-testid="summary-compounding-value"
                                 className="text-lg font-bold text-gray-800"
@@ -1343,22 +1591,23 @@ export default function CompoundingTool() {
                       {/* Bottom row - delta diff lines (always visible) */}
                       <div className="relative flex w-full gap-4">
                         <div className="flex-1">
-                          <div data-tour="delta1" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
-                            <span className="text-[11px] text-gray-400">△</span>
+                          <div data-tour="delta1" data-testid="delta1" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
+                            <span className="text-[13px] text-gray-400">△</span>
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
-                            <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                            <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
                             {diffBlackPink !== 0 && (
                               <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlackPink / 100) * 100).toLocaleString()}</span>
                             )}
                             <div className={`pointer-events-none absolute left-0 top-full z-50 -translate-y-1 pt-2 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 ${forcedDelta === "blackPink" ? "opacity-100" : "opacity-0"}`}>
                               <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
                                 <p className="max-w-[205px]">
-                                  At {ageLabel}, the difference between Compounding Only and Savings Only is:
+                                  At {ageLabel}, the delta/difference between Compounding Only and Savings Only is:
                                 </p>
                                 <div className="mt-4 ml-auto w-fit min-w-[124px]">
                                   <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
                                     <span
+                                      data-testid="difference-black-value"
                                       className="text-sm font-semibold"
                                       style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
                                       {...valueHoverHandlers("black")}
@@ -1370,6 +1619,7 @@ export default function CompoundingTool() {
                                     <span className="text-gray-400">−</span>
                                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
                                     <span
+                                      data-testid="difference-pink-value"
                                       className="text-sm font-semibold"
                                       style={{ color: PINK, backgroundColor: hoveredValueSeries === "pink" ? VALUE_HIGHLIGHT : undefined }}
                                       {...valueHoverHandlers("pink")}
@@ -1387,9 +1637,9 @@ export default function CompoundingTool() {
                           </div>
                         </div>
                         <div className="flex-1">
-                          <div data-tour="delta2" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
-                            <span className="text-[11px] text-gray-400">△</span>
-                            <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                          <div data-tour="delta2" data-testid="delta2" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
+                            <span className="text-[13px] text-gray-400">△</span>
+                            <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
                             <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
                             {diffBlueBlack !== 0 && (
                               <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlueBlack / 100) * 100).toLocaleString()}</span>
@@ -1397,12 +1647,13 @@ export default function CompoundingTool() {
                             <div className={`pointer-events-none absolute left-1/2 top-full z-50 -translate-x-1/2 -translate-y-1 pt-2 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 ${forcedDelta === "blueBlack" ? "opacity-100" : "opacity-0"}`}>
                               <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
                                 <p className="max-w-[205px]">
-                                  At {ageLabel}, the difference between Compounding + Yearly Inv. and Compounding Only is:
+                                  At {ageLabel}, the delta/difference between Compounding + Yearly Inv. and Compounding Only is:
                                 </p>
                                 <div className="mt-4 ml-auto w-fit min-w-[124px]">
                                   <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
                                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
                                     <span
+                                      data-testid="difference-blue-value"
                                       className="text-sm font-semibold"
                                       style={{ color: BLUE, backgroundColor: hoveredValueSeries === "blue" ? VALUE_HIGHLIGHT : undefined }}
                                       {...valueHoverHandlers("blue")}
@@ -1412,8 +1663,9 @@ export default function CompoundingTool() {
                                   </div>
                                   <div className="mt-1 flex items-center justify-end gap-1.5 whitespace-nowrap">
                                     <span className="text-gray-400">−</span>
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
                                     <span
+                                      data-testid="difference-black-value"
                                       className="text-sm font-semibold"
                                       style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
                                       {...valueHoverHandlers("black")}
@@ -1472,17 +1724,19 @@ export default function CompoundingTool() {
                             setMoneyExplainerOpen(false);
                             setExplainerOpen(true);
                           }}
-                          className="cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                          aria-label="What is compounding?"
+                          className="group relative cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                           aria-haspopup="dialog"
                         >
                           What is compounding?
+                          <ShortcutTooltip shortcut="C" />
                         </button>{" "}
                         Compounding is a type of growth. What is growth? Growth is change across time. The shape of compounded growth looks like a hockey stick vs. linear growth which looks like a straight line.
                       </>,
-                      "Compounding is when something grows. That growth gets put back into itself and grows again the next year, this repeats forever so that the growth itself grows faster and larger the longer you compound.",
-                      "Start as early as possible, time turns small savings into fortunes",
-                      "Consistency beats amount, investing early is better than investing a lot later in life",
-                      "Re-invest your dividends so your interest earns more interest",
+                          "Compounding is when something grows. That growth gets put back into itself and grows again the next year. This repeats forever, so the growth itself gets faster and larger the longer you compound.",
+                      "Start as early as possible; time turns small savings into fortunes",
+                      "Consistency beats amount; investing early is better than investing a lot later in life",
+                      "Reinvest your dividends so your interest earns more interest",
                       "Patience is your best friend because growth takes time",
                       <>
                         <button
@@ -1491,10 +1745,12 @@ export default function CompoundingTool() {
                           onClick={() => {
                             handleMoneyExplainerOpen();
                           }}
-                          className="cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                          aria-label="What is money?"
+                          className="group relative cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                           aria-haspopup="dialog"
                         >
                           What is money?
+                          <ShortcutTooltip shortcut="M" />
                         </button>{" "}
                         Money is a way to store and trade value.
                       </>,
@@ -1513,13 +1769,12 @@ export default function CompoundingTool() {
                     <div />
                     <span className="text-xs text-gray-400 font-semibold uppercase">Interest:</span>
                     <span className="text-xs text-gray-400 font-semibold uppercase">Your Money:</span>
-                    {([
-                      { label: "Year 1",  idx: 1 },
-                      { label: "Year 30", idx: 20 },
-                      { label: "Year 60", idx: 50 },
-                    ] as { label: string; idx: number }[]).map(({ label, idx }) => {
-                      const money = blueData[idx];
-                      const interest = Math.round(blueData[idx - 1] * rate);
+                    {[1, 25, 50].map((idx) => {
+                      const label = timelineLabel(idx);
+                      const money = activeSummaryData[idx];
+                      const interest = isSavingsOnly
+                        ? 0
+                        : Math.round(activeSummaryData[idx - 1] * rate);
                       const isInterestHovered =
                         hoveredSummaryValue?.idx === idx &&
                         hoveredSummaryValue.column === "interest";
@@ -1534,14 +1789,22 @@ export default function CompoundingTool() {
                         onMouseLeave: () => setHoveredSummaryValue(null),
                         onFocus: () => setHoveredSummaryValue({ idx, column }),
                         onBlur: () => setHoveredSummaryValue(null),
+                        onClick: () => handleAgeChange(idx),
+                        onKeyDown: (event: ReactKeyboardEvent) => {
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          handleAgeChange(idx);
+                        },
                       });
                       return (
-                        <Fragment key={label}>
+                          <Fragment key={idx}>
                           <span className="text-sm text-gray-500">{label}</span>
                           <span
                             data-testid={`summary-interest-${idx}`}
                             tabIndex={0}
-                            className="inline-block rounded-sm px-1 -mx-1 text-sm font-semibold text-gray-700 tabular-nums transition-colors"
+                            role="button"
+                            aria-label={`Show ${label} interest on chart`}
+                            className="inline-block cursor-pointer rounded-sm px-1 -mx-1 text-sm font-semibold text-gray-700 tabular-nums transition-colors"
                             style={{
                               backgroundColor: isInterestHovered
                                 ? VALUE_HIGHLIGHT
@@ -1554,7 +1817,9 @@ export default function CompoundingTool() {
                           <span
                             data-testid={`summary-money-${idx}`}
                             tabIndex={0}
-                            className="inline-block rounded-sm px-1 -mx-1 text-sm font-semibold text-gray-700 tabular-nums transition-colors"
+                            role="button"
+                            aria-label={`Show ${label} total money on chart`}
+                            className="inline-block cursor-pointer rounded-sm px-1 -mx-1 text-sm font-semibold text-gray-700 tabular-nums transition-colors"
                             style={{
                               backgroundColor: isMoneyHovered
                                 ? VALUE_HIGHLIGHT
@@ -1569,19 +1834,73 @@ export default function CompoundingTool() {
                     })}
                   </div>
                   {(() => {
-                    const millionIdx = blueData.findIndex(v => v >= 1_000_000);
-                    const millionAge = millionIdx >= 0 ? STARTING_AGE + millionIdx : null;
+                    const milestoneData = showBlue
+                      ? blueData
+                      : showBlack
+                        ? blackData
+                        : pinkData;
+                    const milestoneIndex = (multiplier: number) =>
+                      milestoneData.findIndex(
+                        value => value >= initialInvestment * multiplier,
+                      );
+                    const doubleYears = milestoneIndex(2);
+                    const tripleYears = milestoneIndex(3);
+                    const quadrupleYears = milestoneIndex(4);
+                    const millionIdx = milestoneData.findIndex(
+                      value => value >= 1_000_000,
+                    );
+                    const millionTimelineValue =
+                      millionIdx >= 0 ? timelineValue(millionIdx) : null;
+                    const validMilestoneIndex = (years: number) =>
+                      years >= 0 && years <= YEARS
+                        ? years
+                        : null;
                     return (
                       <p className="mt-[22px] text-[13px] text-gray-600">
-                        <span className="font-semibold">Compounding at {annualRate}%</span>
-                        {' '}your money will double in{' '}
-                        <span className="font-semibold">{Math.ceil(Math.log(2) / Math.log(1 + rate))} years</span>
-                        {', '}<br />triple in{' '}
-                        <span className="font-semibold">{Math.ceil(Math.log(3) / Math.log(1 + rate))} years</span>
-                        {', '}quadruple in{' '}
-                        <span className="font-semibold">{Math.ceil(Math.log(4) / Math.log(1 + rate))} years</span>
-                        {millionAge !== null ? (
-                          <>{', '}you earn{' '}<span className="font-semibold">$1 million</span>{' '}at age{' '}<span className="font-semibold">{millionAge}</span></>
+                        <span className="font-semibold">
+                          {showBlue ? (
+                            <>Compounding at {annualRate}% + yearly investments</>
+                          ) : showBlack ? (
+                            <>Compounding at {annualRate}%</>
+                          ) : (
+                            "Savings alone"
+                          )}
+                        </span>
+                        <br />
+                        Your money will double in{" "}
+                        {renderSummaryMilestone(
+                          validMilestoneIndex(doubleYears),
+                          doubleYears >= 0 ? `${doubleYears} years` : "over 50 years",
+                          "summary-milestone-double",
+                        )}
+                        <br />
+                        Your money will triple in{" "}
+                        {renderSummaryMilestone(
+                          validMilestoneIndex(tripleYears),
+                          tripleYears >= 0 ? `${tripleYears} years` : "over 50 years",
+                          "summary-milestone-triple",
+                        )}
+                        <br />
+                        Your money will quadruple in{" "}
+                        {renderSummaryMilestone(
+                          validMilestoneIndex(quadrupleYears),
+                          quadrupleYears >= 0
+                            ? `${quadrupleYears} years`
+                            : "over 50 years",
+                          "summary-milestone-quadruple",
+                        )}
+                        {millionTimelineValue !== null ? (
+                          <>
+                            <br />
+                            You earn{" "}
+                            <span className="font-semibold">$1 million</span>{" "}
+                            at{" "}
+                            {renderSummaryMilestone(
+                              millionIdx,
+                              `${isYearMode ? "year" : "age"} ${millionTimelineValue}`,
+                              "summary-milestone-million",
+                            )}
+                          </>
                         ) : null}
                       </p>
                     );
@@ -1594,7 +1913,7 @@ export default function CompoundingTool() {
           </div>{/* end left panel */}
 
           {/* Right panel: Growth Progression Chart */}
-          <div className={`side-by-side-right ${hasVisibleGrowthMode && growthSectionVisible ? "" : "hidden"}`}>
+          <div className={`side-by-side-right ${growthSectionVisible ? "" : "hidden"}`}>
           <div data-tour="growth" className="growth-table-section border-t border-gray-100">
             <button
               onClick={() => setGrowthTableOpen(o => !o)}
@@ -1618,42 +1937,58 @@ export default function CompoundingTool() {
               {([{ start: 0, end: 26 }, { start: 26, end: 51 }] as { start: number; end: number }[]).map(({ start, end }, colIdx) => (
                 <div key={colIdx} data-testid={`growth-column-${colIdx === 0 ? "first" : "second"}`}>
                   <div className={`grid grid-cols-[32px_80px_80px_1fr] gap-2 pb-1 mb-1 border-b border-gray-100 ${colIdx === 1 ? "hidden lg:grid growth-col-header-2" : ""}`}>
-                    <span className="text-[11px] text-gray-400 font-semibold uppercase">Age</span>
+                    <TimeModeToggle
+                      isYearMode={isYearMode}
+                      onToggle={() =>
+                        setXAxisMode((mode) => (mode === "age" ? "year" : "age"))
+                      }
+                    />
                     <HeaderHint
-                      label="Yearly Int."
-                      hint="The money you get for that year from interest paid to you for your investment"
+                      label="Interest"
+                      hint="Annual interest is the money you get for that year from your investment"
                     />
                     <HeaderHint
                       label="Money"
                       hint="The total amount of money you now own from all your years of investing"
                     />
                     <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-gray-400 font-semibold uppercase flex-1">Growth Over Time</span>
-                      <span className="text-[11px] text-gray-400 font-semibold w-20 text-right">% Growth</span>
+                      <span className="text-[12px] text-gray-400 font-semibold flex-1">Growth Over Time</span>
+                      <span className="whitespace-nowrap text-[12px] text-gray-400 font-semibold w-16 text-right">% Growth</span>
                     </div>
                   </div>
                   {Array.from({ length: end - start }, (_, i) => {
                     const idx = start + i;
                     const age = STARTING_AGE + idx;
-                    const tableSeries: GrowthBarSeries = showBlue
+                    const displayedTimelineValue = isYearMode
+                      ? idx
+                      : timelineValue(idx);
+                    const tableSeries: GrowthBarSeries | null = showBlue
                       ? { key: "blue", data: blueData, lightColor: "#b2d8fe", activeColor: "#00d3ff" }
                       : showBlack
                         ? { key: "black", data: blackData, lightColor: "#d1d5db", activeColor: BLACK_BAR }
-                        : { key: "pink", data: pinkData, lightColor: "#fce7f3", activeColor: PINK };
-                    const tableData = tableSeries.data;
-                    const value = tableData[idx];
-                    const visibleBarSeries = [tableSeries];
+                        : showSavings
+                          ? { key: "pink", data: pinkData, lightColor: "#fce7f3", activeColor: PINK }
+                          : null;
+                    const tableData = tableSeries?.data;
+                    const value = tableData?.[idx] ?? null;
+                    const visibleBarSeries = tableSeries ? [tableSeries] : [];
                     const maxVal = Math.max(
                       ...visibleBarSeries.map((series) => series.data[YEARS]),
                       1,
                     );
-                    const pct = Math.round((value - initialInvestment) / initialInvestment * 100);
-                    const multiplier = value / initialInvestment;
-                    const label = idx === 0
-                      ? "Starting Principal"
-                      : pct >= 100
-                      ? `${Math.round(multiplier)}X`
-                      : `+${pct}%`;
+                    const pct =
+                      value === null
+                        ? null
+                        : Math.round((value - initialInvestment) / initialInvestment * 100);
+                    const multiplier = value === null ? null : value / initialInvestment;
+                    const label =
+                      value === null
+                        ? ""
+                        : idx === 0
+                          ? "Principal"
+                          : pct !== null && pct >= 100
+                            ? `${Math.round(multiplier ?? 0)}X`
+                            : `+${pct}%`;
                     const isHovered = hoveredDataIndex === idx;
                     const isBarHovered = barHoveredIdx === idx;
                     const isSummaryInterestHovered =
@@ -1663,17 +1998,24 @@ export default function CompoundingTool() {
                       hoveredSummaryValue?.idx === idx &&
                       hoveredSummaryValue.column === "money";
                     const rowActive = isHovered || isBarHovered;
-                    const yearInterest = idx === 0
-                      ? null
-                      : isSavingsOnly
-                        ? 0
-                        : Math.round(tableData[idx - 1] * rate);
+                    const yearInterest =
+                      value === null
+                        ? null
+                        : idx === 0
+                          ? null
+                          : isSavingsOnly
+                            ? 0
+                            : Math.round((tableData?.[idx - 1] ?? 0) * rate);
                     return (
                       <div
                         key={idx}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Show age ${age} on chart`}
+                        aria-label={
+                          isYearMode
+                            ? `Show year ${idx} on chart`
+                            : `Show age ${age} on chart`
+                        }
                         data-testid="growth-row"
                         data-age={age}
                         data-active={isHovered ? "true" : "false"}
@@ -1688,7 +2030,7 @@ export default function CompoundingTool() {
                           }
                         }}
                       >
-                        <span className={`cell-hover text-[12px] ${rowActive ? "font-semibold" : ""}`} style={{ color: rowActive ? "#111827" : "#9ca3af" }}>{age}</span>
+                        <span className={`cell-hover text-[12px] ${rowActive ? "font-semibold" : ""}`} style={{ color: rowActive ? "#111827" : "#9ca3af" }}>{displayedTimelineValue}</span>
                         <span
                           data-testid={`growth-interest-${age}`}
                           className={`cell-hover text-[12px] tabular-nums ${rowActive ? "font-semibold" : ""}`}
@@ -1702,7 +2044,11 @@ export default function CompoundingTool() {
                               : undefined,
                           }}
                         >
-                          {yearInterest === null ? "-" : `$${yearInterest.toLocaleString()}`}
+                          {value === null
+                            ? ""
+                            : yearInterest === null
+                              ? "-"
+                              : `$${yearInterest.toLocaleString()}`}
                         </span>
                          <span
                            data-testid={`growth-money-${age}`}
@@ -1714,19 +2060,23 @@ export default function CompoundingTool() {
                                   : "#9ca3af",
                               backgroundColor:
                                 isSummaryMoneyHovered ||
-                                (isHovered && hoveredValueSeries === tableSeries.key)
+                                (isHovered && hoveredValueSeries === tableSeries?.key)
                                   ? VALUE_HIGHLIGHT
                                   : undefined,
                            }}
                          >
-                           ${Math.round(value).toLocaleString()}
+                            {value === null ? "" : `$${Math.round(value).toLocaleString()}`}
                          </span>
                         <div
                           className="flex items-center gap-1.5 cursor-default"
                           onMouseEnter={() => setBarHoveredIdx(idx)}
                           onMouseLeave={() => setBarHoveredIdx(null)}
                         >
-                          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: rowActive ? "#eeeeee" : "#f6f6f6" }}>
+                          <div
+                            data-testid={`growth-bar-track-${age}`}
+                            className="growth-bar-track flex-1 h-1.5 rounded-full overflow-hidden"
+                            style={{ backgroundColor: rowActive ? "#eeeeee" : "#f6f6f6" }}
+                          >
                             <div className="flex h-full w-full">
                               {(() => {
                                 let previousWidth = 0;
@@ -1740,6 +2090,7 @@ export default function CompoundingTool() {
                                   return (
                                     <div
                                       key={seriesIdx}
+                                      data-testid={`growth-bar-fill-${age}`}
                                       className="h-full"
                                       style={{
                                         width: `${segmentWidth}%`,
@@ -1753,7 +2104,13 @@ export default function CompoundingTool() {
                               })()}
                             </div>
                           </div>
-                          <span className={`whitespace-nowrap w-20 text-right ${rowActive ? "font-semibold" : ""} ${idx === 0 ? "text-[10px]" : "text-[12px]"}`} style={{ color: rowActive ? "#111827" : "#9ca3af" }}>{label}</span>
+                           <span
+                             data-testid={`growth-percent-${age}`}
+                             className={`whitespace-nowrap w-16 text-right ${rowActive ? "font-semibold" : ""} ${idx === 0 ? "text-[10px]" : "text-[12px]"}`}
+                             style={{ color: rowActive ? "#111827" : "#9ca3af" }}
+                           >
+                             {label}
+                           </span>
                         </div>
                       </div>
                     );
@@ -1778,6 +2135,7 @@ export default function CompoundingTool() {
         showSavings={showSavings}
         showBlack={showBlack}
         showBlue={showBlue}
+        timeMode={xAxisMode}
         onAgeChange={handleAgeChange}
         onClose={handleExplainerClose}
       />
@@ -1785,12 +2143,22 @@ export default function CompoundingTool() {
         open={moneyExplainerOpen}
         onClose={handleMoneyExplainerClose}
       />
-      <LearnMode open={learnOpen} onClose={handleLearnClose} onStage={handleLearnStage} />
+      <LearnMode
+        open={learnOpen}
+        onClose={handleLearnClose}
+        onStage={handleLearnStage}
+        timeMode={xAxisMode}
+        onChartNavigate={handleLearnChartNavigate}
+      />
       <QuizMode
         open={quizOpen}
         principal={initialInvestment}
         annualRate={annualRate}
         onClose={handleQuizClose}
+      />
+      <ShortcutsDialog
+        open={shortcutsOpen}
+        onClose={handleShortcutsClose}
       />
     </div>
   );

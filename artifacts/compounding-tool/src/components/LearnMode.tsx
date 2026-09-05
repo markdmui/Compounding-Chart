@@ -34,6 +34,8 @@ export interface LearnStep {
   target: string;
   title: string;
   body: string;
+  /** alternate copy when the chart is displaying elapsed years */
+  yearBody?: string;
   stage?: LearnStageState;
   /** where the callout sits relative to the target */
   place?: "below" | "above" | "insideBottomRight";
@@ -47,7 +49,7 @@ const STEPS: LearnStep[] = [
   {
     target: "title",
     title: "Your Starting Principal",
-    body: "This is your starting money, called the principal. Everything on this page grows out of this one number. Change it and watch every line move.",
+    body: "This is your starting money, called the principal. Everything on this page grows out of this one number. Change it and watch every line move. (Scroll to change)",
     stage: {
       reset: true,
       showSavings: true,
@@ -65,20 +67,23 @@ const STEPS: LearnStep[] = [
   {
     target: "rate",
     title: "This Is the Interest Rate",
-    body: "How fast it grows. It is the percentage amount your money earns each year for staying invested. A small change here makes a huge difference after many years.",
+    body: "How fast it grows. It is the percentage amount your money earns each year for staying invested. A small change here makes a huge difference after many years. (Scroll to change)",
+    stage: { showSavings: true, showBlack: true, showBlue: false },
     place: "below",
   },
   {
     target: "chart",
     title: "The Shape of Growth",
-    body: "The chart runs from age 10 to age 60. Only the pink line is on: starting money plus each year’s deposits, with no interest. It rises in steps as you add money, and stays flat compared with compounding. (Short cut: left and right arrow keys)",
+    body: "The chart runs from age 10 to age 60. Only the pink line is shown: starting money plus each year’s deposits, with no interest. It rises in steps as you add money and stays flat compared with compounding. (Shortcut key: up and down arrow keys)",
+    yearBody: "The chart runs from year 1 to year 50. Only the pink line is shown: starting money plus each year’s deposits, with no interest. It rises in steps as you add money and stays flat compared with compounding. (Shortcut key: up and down arrow keys)",
     place: "insideBottomRight",
     nudge: { y: -90 },
   },
   {
     target: "inputs",
     title: "What You Add Each Year",
-    body: "These boxes are how much you invest each year across your lifetime. Change these values to see how your investments change over time.",
+    body: "These boxes are how much you invest each year across your lifetime. Change these values to see how your investments change over time. (Scroll to change)",
+    stage: { showSavings: true, showBlack: true, showBlue: true },
     place: "above",
     nudge: { y: -15 },
   },
@@ -92,7 +97,7 @@ const STEPS: LearnStep[] = [
   {
     target: "valuecard",
     title: "Savings Only",
-    body: "With Savings-only turned on, this pink box shows your starting money plus all your deposits, you don’t earn any interest if all you do is save. (Shortcut key: 1)",
+    body: "With Savings-only turned on, this pink box shows your starting money plus all your deposits. You don’t earn any interest if all you do is save. (Shortcut key: 1)",
     stage: { showSavings: true, showBlack: false, showBlue: false, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },
@@ -120,7 +125,8 @@ const STEPS: LearnStep[] = [
   {
     target: "modes",
     title: "Three Ways to Grow Money",
-    body: "This box shows all three side by side at the age you have selected. Pink is plain saving, black is compounding on its own, and blue is compounding plus what you add each year.",
+    body: "This box shows all three side-by-side at the age you have selected. Pink is plain savings, black is compounding on its own, and blue is compounding plus what you add each year.",
+    yearBody: "This box shows all three side-by-side at the year you have selected. Pink is plain savings, black is compounding on its own, and blue is compounding plus what you add each year.",
     place: "above",
     nudge: { y: -15 },
   },
@@ -148,7 +154,7 @@ const STEPS: LearnStep[] = [
   {
     target: "summary",
     title: "The Quick Summary",
-    body: "Your interest and your total at three points in life, and how long your money takes to double, triple and quadruple at this rate.",
+    body: "Your interest earnings and total at three points in life, and how long it takes your money to double, triple, and quadruple at this rate.",
     stage: { lessonsSummaryOpen: true },
     place: "above",
   },
@@ -156,13 +162,14 @@ const STEPS: LearnStep[] = [
     target: "growth",
     title: "Year by Year",
     body: "Every single year from age 10 to 60. The bars show the same story as the chart, growing slowly at first and then racing away. Click any row to jump the chart to that age.",
+    yearBody: "Every single year from year 1 to 50. The bars show the same story as the chart, growing slowly at first and then racing away. Click any row to jump the chart to that year.",
     stage: { growthTableOpen: true, explainerOpen: false },
     place: "insideBottomRight",
   },
   {
     target: "whatis",
-    title: "Same Start, Three Kinds of Growth",
-    body: "Click here to see a visual comparison of your 3 jars of money. All of them begin with the same money, and the arrows step you through the years so you can watch the three numbers pull apart. (Shortcut key: F)",
+    title: "Same Start, 3 Kinds of Growth",
+    body: "A side by side comparison is a helpful tool when trying to understand complicated things. Use the up and down arrows to see how each changes in relation to one another. (Shortcut key: C)",
     stage: { lessonsSummaryOpen: true, explainerOpen: true },
     place: "above",
     alsoOutline: ["explainer"],
@@ -170,7 +177,7 @@ const STEPS: LearnStep[] = [
   {
     target: "money-link",
     title: "An Intro to Money",
-    body: "Many kids never learn what money is or why it matters. They learn that money is something you spend, that it lets you buy things, and that you should save it. All of that is true - but those ideas describe what you do with money, not what money is. When you start with first principles - understanding what money actually represents - you can make better decisions with it. That is the foundation for becoming a responsible saver, spender, and investor.",
+    body: "Many kids never learn what money is or why it matters. They learn that money is something you spend, that it lets you buy things, and that you should save it. All of that is true - but those ideas describe what you do with money, not what money is. When you start with first principles - understanding what money actually represents - you can make better decisions with it. That is the foundation for becoming a responsible saver, spender, and investor. (Shortcut key: M)",
     stage: {
       lessonsSummaryOpen: true,
       explainerOpen: false,
@@ -190,14 +197,24 @@ const CALLOUT_WIDTH = 340;
 const CALLOUT_HEIGHT = 200;
 const CALLOUT_GAP = 16;
 const CALLOUT_INSET = 24;
+const SHORTCUT_TIP_CLASSES =
+  "inline-block whitespace-nowrap rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-xs font-semibold leading-5 text-slate-600";
 
 interface LearnModeProps {
   open: boolean;
   onClose: () => void;
   onStage: (stage: LearnStageState) => void;
+  timeMode: "age" | "year";
+  onChartNavigate?: (delta: number) => void;
 }
 
-export function LearnMode({ open, onClose, onStage }: LearnModeProps) {
+export function LearnMode({
+  open,
+  onClose,
+  onStage,
+  timeMode,
+  onChartNavigate,
+}: LearnModeProps) {
   const [step, setStep] = useState(0);
   const [spots, setSpots] = useState<
     { top: number; left: number; width: number; height: number }[]
@@ -206,11 +223,18 @@ export function LearnMode({ open, onClose, onStage }: LearnModeProps) {
 
   const onStageRef = useRef(onStage);
   onStageRef.current = onStage;
+  const onChartNavigateRef = useRef(onChartNavigate);
+  onChartNavigateRef.current = onChartNavigate;
 
   const current = STEPS[step];
+  const currentTargetRef = useRef("");
+  currentTargetRef.current = current.target;
+
   const isLast = step === STEPS.length - 1;
-  const shortcutMatch = current.body.match(
-    /^(.*?)(\((?:Short cut|Shortcut key): [^)]+\))$/,
+  const currentBody =
+    timeMode === "year" && current.yearBody ? current.yearBody : current.body;
+  const shortcutMatch = currentBody.match(
+    /^(.*?)(\((?:Shortcut key): [^)]+\)|\(Scroll to change\))$/,
   );
 
   const calloutRef = useRef<HTMLElement | null>(null);
@@ -352,6 +376,12 @@ export function LearnMode({ open, onClose, onStage }: LearnModeProps) {
       } else if (event.key === "ArrowLeft") {
         event.preventDefault();
         setStep((prev) => Math.max(prev - 1, 0));
+      } else if (
+        (event.key === "ArrowUp" || event.key === "ArrowDown") &&
+        currentTargetRef.current === "chart"
+      ) {
+        event.preventDefault();
+        onChartNavigateRef.current?.(event.key === "ArrowUp" ? 1 : -1);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -415,12 +445,12 @@ export function LearnMode({ open, onClose, onStage }: LearnModeProps) {
               {shortcutMatch ? (
                 <>
                   {shortcutMatch[1].trimEnd()}{" "}
-                  <span className="inline-block whitespace-nowrap rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-xs font-semibold leading-5 text-slate-600">
+                  <span className={SHORTCUT_TIP_CLASSES}>
                     {shortcutMatch[2]}
                   </span>
                 </>
               ) : (
-                current.body
+                currentBody
               )}
             </p>
 

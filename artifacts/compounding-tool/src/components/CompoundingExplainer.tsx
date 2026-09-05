@@ -10,6 +10,7 @@ interface CompoundingExplainerProps {
   showSavings: boolean;
   showBlack: boolean;
   showBlue: boolean;
+  timeMode: "age" | "year";
   onAgeChange: (index: number) => void;
   onClose: () => void;
 }
@@ -84,6 +85,7 @@ interface MiniGrowthLineProps {
   maxGrowth: number;
   color: string;
   label: string;
+  selectedTimelineLabel: string;
   heightScale?: number;
 }
 
@@ -93,6 +95,7 @@ function MiniGrowthLine({
   maxGrowth,
   color,
   label,
+  selectedTimelineLabel,
   heightScale = 1,
 }: MiniGrowthLineProps) {
   const startingValue = values[0] ?? 0;
@@ -131,7 +134,7 @@ function MiniGrowthLine({
     <figure
       className="relative h-[108px] w-full"
       role="img"
-      aria-label={`${label} growth trajectory through age ${STARTING_AGE + selectedStep}`}
+      aria-label={`${label} growth trajectory through ${selectedTimelineLabel}`}
     >
       <svg
         className="h-full w-full overflow-visible"
@@ -170,6 +173,7 @@ export function CompoundingExplainer({
   showSavings,
   showBlack,
   showBlue,
+  timeMode,
   onAgeChange,
   onClose,
 }: CompoundingExplainerProps) {
@@ -188,6 +192,10 @@ export function CompoundingExplainer({
 
   const step = Math.min(MAX_STEP, Math.max(0, selectedAgeIndex));
   const age = STARTING_AGE + step;
+  const selectedTimelineLabel =
+    timeMode === "year"
+      ? `year ${step}`
+      : `age ${age}`;
   const visibleCardCount = [showSavings, showBlack, showBlue].filter(Boolean).length;
   const cardGridColumns =
     visibleCardCount === 3
@@ -308,33 +316,42 @@ export function CompoundingExplainer({
     event.currentTarget.releasePointerCapture(event.pointerId);
   };
 
-  const renderAgeButton = (index: number) => (
-    <button
-      key={index}
-      type="button"
-      aria-label={`Go to age ${STARTING_AGE + index}`}
-      aria-current={index === step ? "step" : undefined}
-      onClick={() => onAgeChange(index)}
-      style={{
-        color: "#9ca3af",
-        fontFamily: "inherit",
-        fontSize: "12px",
-        fontVariantNumeric: "tabular-nums",
-        fontWeight: 400,
-      }}
-      className="grid h-6 w-auto place-items-center border-0 px-0 transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-    >
-      <span
-        className={`inline-flex h-6 min-w-6 items-center justify-center p-0.5 ${
-          index === step
-            ? "bg-gray-500 text-white"
-            : "text-gray-400 hover:text-black hover:outline hover:outline-1 hover:outline-gray-400 hover:outline-offset-2"
-        }`}
+  const renderAgeButton = (index: number) => {
+    const visibleLabel =
+      timeMode === "year" ? index : STARTING_AGE + index;
+    const accessibleLabel =
+      timeMode === "year"
+        ? `Go to year ${index}`
+        : `Go to age ${STARTING_AGE + index}`;
+
+    return (
+      <button
+        key={index}
+        type="button"
+        aria-label={accessibleLabel}
+        aria-current={index === step ? "step" : undefined}
+        onClick={() => onAgeChange(index)}
+        style={{
+          color: "#9ca3af",
+          fontFamily: "inherit",
+          fontSize: "12px",
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: 400,
+        }}
+        className="grid h-6 w-auto place-items-center border-0 px-0 transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
       >
-        {STARTING_AGE + index}
-      </span>
-    </button>
-  );
+        <span
+          className={`inline-flex h-6 min-w-6 items-center justify-center p-0.5 ${
+            index === step
+              ? "bg-gray-500 text-white"
+              : "text-gray-400 hover:text-black hover:outline hover:outline-1 hover:outline-gray-400 hover:outline-offset-2"
+          }`}
+        >
+          {visibleLabel}
+        </span>
+      </button>
+    );
+  };
 
   return createPortal(
     <div
@@ -394,7 +411,7 @@ export function CompoundingExplainer({
                 id="compounding-explainer-title"
                 className="max-w-2xl text-lg text-gray-900 md:text-xl"
               >
-                Same Start, 3 Kinds of Growth
+                Visually Compare All Three
               </h2>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -459,9 +476,11 @@ export function CompoundingExplainer({
 
           <p
             id="compounding-explainer-description"
-            className="mt-1 max-w-none whitespace-nowrap text-sm leading-6 text-slate-500"
+            className="mt-1 max-w-none text-sm leading-6 text-slate-500"
           >
-            All 3 jars begin with the same money. Press the up and down arrows to see how they change over time.
+            <span>All 3 investment types start with the same money.</span>
+            <br />
+            <span>Press the up and down arrows to see how they change over time.</span>
           </p>
 
           <div className="mt-1 flex flex-wrap items-center gap-3">
@@ -487,7 +506,13 @@ export function CompoundingExplainer({
         <div className="px-5 pb-3 pt-1 sm:px-9 sm:pb-4 sm:pt-1">
           <div className={`mt-1 grid gap-x-1 gap-y-3 ${cardGridColumns}`}>
             {showSavings && (
-            <article className="flex min-h-[380px] flex-col border-t-2 border-pink-500 bg-pink-50/50 p-5">
+            <article className="flex min-h-[380px] flex-col bg-pink-50/50 p-5">
+              <div className="-mx-5 -mt-5 mb-4 h-4 overflow-hidden bg-pink-100" aria-label="Savings progress">
+                <div
+                  className="h-full bg-pink-500 transition-[width] duration-300"
+                  style={{ width: `${Math.max(4, (linear / maxValue) * 100)}%` }}
+                />
+              </div>
               <div className="flex min-h-6 flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center">
                   <h3 className="text-sm font-normal text-pink-900 md:whitespace-nowrap">Linear growth</h3>
@@ -503,6 +528,7 @@ export function CompoundingExplainer({
                   maxGrowth={finalMaxGrowth}
                   color="#db2777"
                   label="Linear"
+                  selectedTimelineLabel={selectedTimelineLabel}
                 />
                 <p className="mt-1 text-3xl font-bold tracking-tight text-pink-700">
                   <span
@@ -530,17 +556,17 @@ export function CompoundingExplainer({
                   </span>
                 </p>
               </div>
-              <div className="mt-4 h-4 overflow-hidden bg-pink-100">
-                <div
-                  className="h-full bg-pink-500 transition-[width] duration-300"
-                  style={{ width: `${Math.max(4, (linear / maxValue) * 100)}%` }}
-                />
-              </div>
             </article>
             )}
 
             {showBlack && (
-            <article className="flex min-h-[380px] flex-col border-t-2 border-gray-400 bg-gray-100 p-5">
+            <article className="flex min-h-[380px] flex-col bg-gray-100 p-5">
+              <div className="-mx-5 -mt-5 mb-4 h-4 overflow-hidden bg-gray-200" aria-label="Compounding progress">
+                <div
+                  className="h-full bg-gray-500 transition-[width] duration-300"
+                  style={{ width: `${Math.max(4, (compoundingOnly / maxValue) * 100)}%` }}
+                />
+              </div>
               <div className="flex min-h-6 flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center">
                   <h3 className="text-sm font-normal text-gray-800 md:whitespace-nowrap">Compounding only</h3>
@@ -556,6 +582,7 @@ export function CompoundingExplainer({
                   maxGrowth={finalMaxGrowth}
                   color="#9ca3af"
                   label="Compounding-only"
+                  selectedTimelineLabel={selectedTimelineLabel}
                   heightScale={0.8}
                 />
                 <p className="mt-1 text-3xl font-bold tracking-tight text-gray-700">
@@ -584,17 +611,17 @@ export function CompoundingExplainer({
                   </span>
                 </p>
               </div>
-              <div className="mt-4 h-4 overflow-hidden bg-gray-200">
-                <div
-                  className="h-full bg-gray-500 transition-[width] duration-300"
-                  style={{ width: `${Math.max(4, (compoundingOnly / maxValue) * 100)}%` }}
-                />
-              </div>
             </article>
             )}
 
             {showBlue && (
-            <article className="flex min-h-[380px] flex-col border-t-2 border-blue-500 bg-blue-50/50 p-5">
+            <article className="flex min-h-[380px] flex-col bg-blue-50/50 p-5">
+              <div className="-mx-5 -mt-5 mb-4 h-4 overflow-hidden bg-blue-100" aria-label="Compounding plus yearly investments progress">
+                <div
+                  className="h-full bg-blue-500 transition-[width] duration-300"
+                  style={{ width: `${Math.max(4, (compoundedWithContributions / maxValue) * 100)}%` }}
+                />
+              </div>
               <div className="flex min-h-6 flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center">
                   <h3 className="text-sm font-normal text-blue-900 md:whitespace-nowrap">Compounding + yearly Inv.</h3>
@@ -610,6 +637,7 @@ export function CompoundingExplainer({
                   maxGrowth={finalMaxGrowth}
                   color="#3b82f6"
                   label="Compounding plus yearly investing"
+                  selectedTimelineLabel={selectedTimelineLabel}
                 />
                 <p className="mt-1 text-3xl font-bold tracking-tight text-blue-700">
                   <span
@@ -637,29 +665,31 @@ export function CompoundingExplainer({
                   </span>
                 </p>
               </div>
-              <div className="mt-4 h-4 overflow-hidden bg-blue-100">
-                <div
-                  className="h-full bg-blue-500 transition-[width] duration-300"
-                  style={{ width: `${Math.max(4, (compoundedWithContributions / maxValue) * 100)}%` }}
-                />
-              </div>
             </article>
             )}
           </div>
 
           <div
             className="mt-3 grid w-full gap-y-px overflow-hidden py-1"
-            aria-label="Choose an age"
+            aria-label={timeMode === "year" ? "Choose a year" : "Choose an age"}
           >
             <div
               className="grid grid-cols-[repeat(25,max-content)] justify-between gap-0"
-              aria-label="Ages 10 through 34"
+              aria-label={
+                timeMode === "year"
+                  ? "Years 0 through 24"
+                  : "Ages 10 through 34"
+              }
             >
               {Array.from({ length: 25 }, (_, index) => renderAgeButton(index))}
             </div>
             <div
               className="grid grid-cols-[repeat(26,max-content)] justify-between gap-0"
-              aria-label="Ages 35 through 60"
+              aria-label={
+                timeMode === "year"
+                  ? "Years 25 through 50"
+                  : "Ages 35 through 60"
+              }
             >
               {Array.from({ length: 26 }, (_, index) => renderAgeButton(index + 25))}
             </div>
