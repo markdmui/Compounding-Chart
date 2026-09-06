@@ -623,7 +623,7 @@ describe("growth table chart navigation", () => {
     expect(activeRows[0]).toHaveAttribute("data-age", "35");
   });
 
-  it("highlights the corresponding chart curve when a difference value is hovered", async () => {
+  it("highlights a difference value without touching the chart curve", async () => {
     const user = userEvent.setup();
     render(<CompoundingTool />);
     enableComparisonCurves();
@@ -639,13 +639,14 @@ describe("growth table chart navigation", () => {
     const blackValue = within(delta1).getByTestId("difference-black-value");
     const pinkValue = within(delta1).getByTestId("difference-pink-value");
 
+    // The number highlights, but only the legend may glow a curve.
     await user.hover(blackValue);
-    expect(chartCurveArea).toHaveAttribute("data-highlighted-curve", "black");
     expect(blackValue).toHaveStyle({ backgroundColor: "#ffff99" });
+    expect(chartCurveArea).not.toHaveAttribute("data-highlighted-curve");
 
     await user.hover(pinkValue);
-    expect(chartCurveArea).toHaveAttribute("data-highlighted-curve", "pink");
     expect(pinkValue).toHaveStyle({ backgroundColor: "#ffff99" });
+    expect(chartCurveArea).not.toHaveAttribute("data-highlighted-curve");
 
     await user.hover(delta2);
     expect(delta2).toHaveTextContent(
@@ -653,10 +654,7 @@ describe("growth table chart navigation", () => {
     );
     const blueValue = within(delta2).getByTestId("difference-blue-value");
     await user.hover(blueValue);
-    expect(chartCurveArea).toHaveAttribute("data-highlighted-curve", "blue");
     expect(blueValue).toHaveStyle({ backgroundColor: "#ffff99" });
-
-    await user.unhover(blueValue);
     expect(chartCurveArea).not.toHaveAttribute("data-highlighted-curve");
   });
 
@@ -1012,7 +1010,7 @@ describe("money explainer", () => {
       screen.queryByRole("region", { name: "Five things people value" }),
     ).not.toBeInTheDocument();
     expect(dialog).toHaveTextContent(
-      "We value five things: control, power, time, freedom, and knowledge",
+      "We value five things: control, power, freedom, time, and knowledge",
     );
     const learnMoreLink = screen.getByRole("button", {
       name: "Show details about the five values",
@@ -1032,10 +1030,10 @@ describe("money explainer", () => {
       screen.getByRole("region", { name: "Five things people value" }),
     ).toBeInTheDocument();
     expect(dialog).toHaveTextContent(
-      "Control - choosing how you act, even when you did not choose the situation.",
+      "Control - which way your actions are directed. It is deciding where to aim the garden hose.",
     );
     expect(dialog).toHaveTextContent(
-      "Power - being able to influence your own or other people’s choices.",
+      "Power - how much your action does. It is how much water comes out of the hose.",
     );
     expect(dialog).toHaveTextContent(
       "Time - hours that belong to you. It is the most valuable resource we have.",
@@ -1044,7 +1042,7 @@ describe("money explainer", () => {
       "Paying for a bus ride to school saves you the hour you would have spent walking.",
     );
     expect(dialog).toHaveTextContent(
-      "Freedom - being able to make your own choices.",
+      "Freedom - whether you get to act at all. It is choosing whether to pick up the garden hose.",
     );
     expect(dialog).toHaveTextContent(
       "Knowledge - information you can actually use.",

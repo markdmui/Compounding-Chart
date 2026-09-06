@@ -15,7 +15,7 @@ const SHORTCUTS = [
   { keys: "M", description: "Open the money lesson" },
   { keys: "← / →", description: "Move through Introduction slides" },
   { keys: "↑ / ↓", description: "Move the selected age or year" },
-  { keys: "Home / End", description: "Jump to the start / end of the chart" },
+  { keys: "Home / End", description: "Jump to the end / start of the chart" },
   { keys: "Enter / Space", description: "Activate a focused chart or table item" },
   { keys: "1–4 (Quiz Mode)", description: "Choose a quiz answer" },
   { keys: "Enter (Quiz Mode)", description: "Continue to the next question" },

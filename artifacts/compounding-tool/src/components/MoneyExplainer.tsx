@@ -184,7 +184,7 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                   onClick={() => setDetailsExpanded((expanded) => !expanded)}
                   className="group relative cursor-pointer font-semibold text-blue-700 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-900 hover:decoration-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
                 >
-                  control, power, time, freedom, and knowledge
+                  control, power, freedom, time, and knowledge
                   <span
                     role="tooltip"
                     className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-gray-200 bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -220,9 +220,8 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 />
                 <span>
                   <strong className="font-semibold text-slate-900">Control</strong>{" "}
-                  - choosing <em>how</em> you act, even when you did not choose the
-                  situation. Your parents can make you play soccer. You still choose
-                  your position and how you play.
+                  - which way your actions are directed. It is deciding where to aim
+                  the garden hose.
                 </span>
               </p>
               <p className="flex items-start gap-3">
@@ -232,9 +231,19 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 />
                 <span>
                   <strong className="font-semibold text-slate-900">Power</strong>{" "}
-                  - being able to influence your own or other people’s choices. A gardener chooses
-                  what to plant. The owner of the company decides when and where the
-                  gardener will work.
+                  - how much your action does. It is how much water comes out of the
+                  hose.
+                </span>
+              </p>
+              <p className="flex items-start gap-3">
+                <Flag
+                  className="mt-0.5 h-5 w-5 shrink-0 text-slate-500"
+                  aria-hidden="true"
+                />
+                <span>
+                  <strong className="font-semibold text-slate-900">Freedom</strong>{" "}
+                  - whether you get to act at all. It is choosing whether to pick up
+                  the garden hose.
                 </span>
               </p>
               <p className="flex items-start gap-3">
@@ -250,28 +259,16 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 </span>
               </p>
               <p className="flex items-start gap-3">
-                <Flag
-                  className="mt-0.5 h-5 w-5 shrink-0 text-slate-500"
-                  aria-hidden="true"
-                />
-                <span>
-                  <strong className="font-semibold text-slate-900">Freedom</strong>{" "}
-                   - being able to make your own choices. Being able to go, stay, or
-                   switch—not being stuck. Control and power live inside freedom.
-                  Freedom is whether you get to use them.
-                </span>
-              </p>
-              <p className="flex items-start gap-3">
                 <BookOpen
                   className="mt-0.5 h-5 w-5 shrink-0 text-slate-500"
                   aria-hidden="true"
                 />
                 <span>
                   <strong className="font-semibold text-slate-900">Knowledge</strong>{" "}
-                  - information you can actually use. Knowing how to fix a bike, play
-                   a guitar, or draw is knowledge. Reading about it is only
-                   information until you can do it. You can spend or trade your time and
-                   money to acquire knowledge, then sell that knowledge for more money.
+                  - information you can actually use. Reading about how to fix a bike
+                   is information. Being able to fix it is knowledge. You can spend or
+                   trade your time and money to acquire knowledge, then sell that
+                   knowledge for more money.
                 </span>
               </p>
               </div>

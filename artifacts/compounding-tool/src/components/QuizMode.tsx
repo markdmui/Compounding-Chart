@@ -41,13 +41,13 @@ function buildQuestions(principal: number, annualRate: number): QuizQuestion[] {
   {
     question: "What are the 5 things people value?",
     choices: [
-      "Control, power, time, freedom, and knowledge",
+      "Control, power, freedom, time, and knowledge",
       "Money, interest, savings, debt, and taxes",
       "Food, shelter, transport, work, and leisure",
       "Principal, rate, growth, deposits, and profit",
     ],
     answer: 0,
-    why: "People value control, power, time, freedom, and knowledge. Money helps us store and trade these kinds of value.",
+    why: "People value control, power, freedom, time, and knowledge. Money helps us store and trade these kinds of value.",
   },
   {
     question: "What is compounding?",

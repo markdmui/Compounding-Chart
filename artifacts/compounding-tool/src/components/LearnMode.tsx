@@ -67,7 +67,7 @@ const STEPS: LearnStep[] = [
   {
     target: "rate",
     title: "This Is the Interest Rate",
-    body: "How fast it grows. It is the percentage amount your money earns each year for staying invested. A small change here makes a huge difference after many years. (Scroll to change)",
+    body: "How fast your money grows. It is the percentage amount your money earns each year for staying invested. A small change here makes a huge difference after many years. (Scroll to change)",
     stage: { showSavings: true, showBlack: true, showBlue: false },
     place: "below",
   },
@@ -97,7 +97,7 @@ const STEPS: LearnStep[] = [
   {
     target: "valuecard",
     title: "Savings Only",
-    body: "With Savings-only turned on, this pink box shows your starting money plus all your deposits. You don’t earn any interest if all you do is save. (Shortcut key: 1)",
+    body: "With Savings-only turned on, this pink box shows your starting money plus all your deposits. You don’t earn any interest if all you do is save. (Shortcut key: 1, once you close this guide)",
     stage: { showSavings: true, showBlack: false, showBlue: false, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },
@@ -106,7 +106,7 @@ const STEPS: LearnStep[] = [
   {
     target: "valuecard",
     title: "The Power of Compounding",
-    body: "With Compounding-only turned on, this grey box shows your starting money grown with interest each year. Notice how much larger it is compared to Savings alone. (Shortcut key: 2)",
+    body: "With Compounding-only turned on, this grey box shows your starting money grown with interest each year. Notice how much larger it is compared to Savings alone. (Shortcut key: 2, once you close this guide)",
     stage: { showSavings: true, showBlack: true, showBlue: false, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },
@@ -116,7 +116,7 @@ const STEPS: LearnStep[] = [
     target: "valuecard",
     // non-breaking space keeps "Yearly Investments" together on the second line
     title: "Compounding + Yearly Investments",
-    body: "This box shows how powerful compounding is when you pair it with additional investments each year on top of compounding. Notice how much larger it is than Compounding alone and how it dwarfs Savings. (Shortcut key: 3)",
+    body: "This box shows how powerful compounding is when you pair it with additional investments each year on top of compounding. Notice how much larger it is than Compounding alone and how it dwarfs Savings. (Shortcut key: 3, once you close this guide)",
     stage: { showSavings: true, showBlack: true, showBlue: true, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },

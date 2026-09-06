@@ -712,8 +712,10 @@ export default function CompoundingTool() {
     pink: pinkData[i],
   }));
 
+  // Contributions run from age 11 to age 60, so the 10s bucket only pays 9
+  // times. This has to match the loops above or the green box overstates.
   const totalContributions =
-    contributions["10s"] * 10 +
+    contributions["10s"] * 9 +
     contributions["20s"] * 10 +
     contributions["30s"] * 10 +
     contributions["40s"] * 10 +
@@ -1055,7 +1057,7 @@ export default function CompoundingTool() {
             <div
               ref={chartContainerRef}
               data-testid="chart-curve-area"
-              data-highlighted-curve={hoveredValueSeries ?? hoveredLegend ?? undefined}
+              data-highlighted-curve={hoveredLegend ?? undefined}
               className="chart-curve-area relative h-[32vh] md:h-[38vh] xl:h-[44vh] min-h-[220px] max-h-[520px] w-full"
             >
               {/* Floating curve values follow the selected point */}
@@ -1734,10 +1736,10 @@ export default function CompoundingTool() {
                         Compounding is a type of growth. What is growth? Growth is change across time. The shape of compounded growth looks like a hockey stick vs. linear growth which looks like a straight line.
                       </>,
                           "Compounding is when something grows. That growth gets put back into itself and grows again the next year. This repeats forever, so the growth itself gets faster and larger the longer you compound.",
-                      "Start as early as possible; time turns small savings into fortunes",
-                      "Consistency beats amount; investing early is better than investing a lot later in life",
-                      "Reinvest your dividends so your interest earns more interest",
-                      "Patience is your best friend because growth takes time",
+                      "Start as early as possible; time turns small savings into fortunes.",
+                      "Consistency beats amount; investing early is better than investing a lot later in life.",
+                      "Reinvest your interest as yearly additions so your interest earns more interest.",
+                      "Patience is your best friend because growth takes time.",
                       <>
                         <button
                           type="button"
@@ -1987,7 +1989,7 @@ export default function CompoundingTool() {
                         : idx === 0
                           ? "Principal"
                           : pct !== null && pct >= 100
-                            ? `${Math.round(multiplier ?? 0)}X`
+                            ? `${Math.floor(multiplier ?? 0)}X`
                             : `+${pct}%`;
                     const isHovered = hoveredDataIndex === idx;
                     const isBarHovered = barHoveredIdx === idx;
@@ -2052,6 +2054,14 @@ export default function CompoundingTool() {
                         </span>
                          <span
                            data-testid={`growth-money-${age}`}
+                           onMouseEnter={() => {
+                             // Only the selected row draws a dot on the curve, so
+                             // that is the only row whose money cell can highlight it.
+                             if (isHovered && tableSeries) {
+                               setHoveredValueSeries(tableSeries.key);
+                             }
+                           }}
+                           onMouseLeave={() => setHoveredValueSeries(null)}
                            className={`cell-hover text-[12px] tabular-nums ${rowActive ? "font-semibold" : ""}`}
                            style={{
                               color:
