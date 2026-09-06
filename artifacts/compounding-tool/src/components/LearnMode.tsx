@@ -27,6 +27,8 @@ export interface LearnStageState {
   explainerOpen?: boolean;
   /** open or close the "What is money?" explainer dialog */
   moneyExplainerOpen?: boolean;
+  /** let the page's keyboard shortcuts work while the guide is still open */
+  allowShortcuts?: boolean;
 }
 
 export interface LearnStep {
@@ -44,6 +46,14 @@ export interface LearnStep {
   /** extra data-tour targets to outline alongside the main one */
   alsoOutline?: string[];
 }
+
+/**
+ * Index of the first step that tells the reader about a keyboard shortcut.
+ * From here on the page's shortcuts stay live so they can try them without
+ * closing the guide. Derived from the index, so stepping backwards turns
+ * them off again.
+ */
+const SHORTCUTS_FROM_STEP = 5;
 
 const STEPS: LearnStep[] = [
   {
@@ -67,15 +77,16 @@ const STEPS: LearnStep[] = [
   {
     target: "rate",
     title: "This Is the Interest Rate",
-    body: "How fast your money grows. It is the percentage amount your money earns each year for staying invested. A small change here makes a huge difference after many years. (Scroll to change)",
+    body: "How fast your money grows. It is the percentage amount your money earns each year for staying invested. A small change here makes a huge difference after many years. Interest changes the compounding lines (grey line), it doesn't affect savings. (Scroll to change)",
     stage: { showSavings: true, showBlack: true, showBlue: false },
     place: "below",
   },
   {
     target: "chart",
     title: "The Shape of Growth",
-    body: "The chart runs from age 10 to age 60. Only the pink line is shown: starting money plus each year’s deposits, with no interest. It rises in steps as you add money and stays flat compared with compounding. (Shortcut key: up and down arrow keys)",
-    yearBody: "The chart runs from year 1 to year 50. Only the pink line is shown: starting money plus each year’s deposits, with no interest. It rises in steps as you add money and stays flat compared with compounding. (Shortcut key: up and down arrow keys)",
+    body: "The chart runs from age 10 to age 60. Pink savings line is your starting money plus deposits. Grey compounding line is that same money left to grow with interest. Blue line is compounding plus new money added every year. Watch how far apart they pull as the years go by. (Shortcut key: up and down arrow keys)",
+    yearBody: "The chart runs from year 1 to year 50. Pink savings line is your starting money plus deposits. Grey compounding line is that same money left to grow with interest. Blue line is compounding plus new money added every year. Watch how far apart they pull as the years go by. (Shortcut key: up and down arrow keys)",
+    stage: { showSavings: true, showBlack: true, showBlue: true },
     place: "insideBottomRight",
     nudge: { y: -90 },
   },
@@ -97,7 +108,7 @@ const STEPS: LearnStep[] = [
   {
     target: "valuecard",
     title: "Savings Only",
-    body: "With Savings-only turned on, this pink box shows your starting money plus all your deposits. You don’t earn any interest if all you do is save. (Shortcut key: 1, once you close this guide)",
+    body: "With Savings-only turned on, this pink box shows your starting money plus all your deposits. You don’t earn any interest if all you do is save. (Shortcut key: 1)",
     stage: { showSavings: true, showBlack: false, showBlue: false, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },
@@ -106,7 +117,7 @@ const STEPS: LearnStep[] = [
   {
     target: "valuecard",
     title: "The Power of Compounding",
-    body: "With Compounding-only turned on, this grey box shows your starting money grown with interest each year. Notice how much larger it is compared to Savings alone. (Shortcut key: 2, once you close this guide)",
+    body: "With Compounding-only turned on, this grey box shows your starting money grown with interest each year. Notice how much larger it is compared to Savings alone. (Shortcut key: 2)",
     stage: { showSavings: true, showBlack: true, showBlue: false, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },
@@ -116,7 +127,7 @@ const STEPS: LearnStep[] = [
     target: "valuecard",
     // non-breaking space keeps "Yearly Investments" together on the second line
     title: "Compounding + Yearly Investments",
-    body: "This box shows how powerful compounding is when you pair it with additional investments each year on top of compounding. Notice how much larger it is than Compounding alone and how it dwarfs Savings. (Shortcut key: 3, once you close this guide)",
+    body: "This box shows how powerful compounding is when you pair it with additional investments each year on top of compounding. Notice how much larger it is than Compounding alone and how it dwarfs Savings. (Shortcut key: 3)",
     stage: { showSavings: true, showBlack: true, showBlue: true, ageIndex: 50 },
     place: "above",
     nudge: { y: -15 },
@@ -307,7 +318,10 @@ export function LearnMode({
     if (!open) return;
     let cancelled = false;
 
-    onStageRef.current(current.stage ?? {});
+    onStageRef.current({
+      ...(current.stage ?? {}),
+      allowShortcuts: step >= SHORTCUTS_FROM_STEP,
+    });
 
     const timer = window.setTimeout(() => {
       if (cancelled) return;
@@ -347,14 +361,29 @@ export function LearnMode({
     }
   }, [open, callout, current]);
 
-  // Keep the outline glued to the target if the window moves under it.
+  // Keep the outline glued to the target if the window moves under it, or if
+  // the target changes size on its own — the money dialog grows when its
+  // "control, power, freedom, time, and knowledge" link opens the five values
+  // panel, and the outline has to grow with it.
   useEffect(() => {
     if (!open) return;
     const remeasure = () =>
       measure(current.target, current.place, current.nudge, current.alsoOutline);
     window.addEventListener("resize", remeasure);
     window.addEventListener("scroll", remeasure, true);
+
+    const observer = new ResizeObserver(remeasure);
+    // The step's stage paints first, so wait a tick for the targets to exist.
+    const timer = window.setTimeout(() => {
+      for (const name of [current.target, ...(current.alsoOutline ?? [])]) {
+        const el = document.querySelector<HTMLElement>(`[data-tour="${name}"]`);
+        if (el) observer.observe(el);
+      }
+    }, 80);
+
     return () => {
+      window.clearTimeout(timer);
+      observer.disconnect();
       window.removeEventListener("resize", remeasure);
       window.removeEventListener("scroll", remeasure, true);
     };

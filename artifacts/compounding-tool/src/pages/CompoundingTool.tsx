@@ -47,15 +47,20 @@ type GrowthBarSeries = {
   activeColor: string;
 };
 
-function ShortcutTooltip({ shortcut }: { shortcut: "C" | "M" }) {
+/** Fades in on hover or keyboard focus of the nearest `group` ancestor. */
+function HoverTooltip({ label }: { label: string }) {
   return (
     <span
       role="tooltip"
       className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-gray-200 bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
     >
-      Shortcut: {shortcut}
+      {label}
     </span>
   );
+}
+
+function ShortcutTooltip({ shortcut }: { shortcut: "C" | "M" }) {
+  return <HoverTooltip label={`Shortcut: ${shortcut}`} />;
 }
 
 function TimeModeToggle({
@@ -237,8 +242,34 @@ function InlineNumberInput({
     setLocal(String(value));
   }, [value]);
 
+  // Wheel is handled with a non-passive native listener on the whole pill so
+  // preventDefault actually works (React's onWheel is passive) and so scrolling
+  // anywhere over the field — prefix, suffix, padding — adjusts the value
+  // instead of scrolling the page.
+  const wrapperRef = useRef<HTMLSpanElement>(null);
+  const wheelRef = useRef<(e: WheelEvent) => void>(() => {});
+  wheelRef.current = (e: WheelEvent) => {
+    const current = parseFloat(local);
+    const base = Number.isFinite(current) ? current : value;
+    const next = Math.max(min, base + (e.deltaY < 0 ? wheelStep : -wheelStep));
+    setLocal(String(next));
+    onChange(next);
+  };
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      wheelRef.current(e);
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
+
   return (
     <span
+      ref={wrapperRef}
       data-tour={dataTour}
       className={`inline-flex items-center bg-gray-100 rounded-lg px-2 py-0.5 ${className}`}
     >
@@ -253,17 +284,6 @@ function InlineNumberInput({
           const n = parseFloat(e.target.value);
           if (!isNaN(n)) onChange(n);
         }}
-         onWheel={(e) => {
-           e.preventDefault();
-           const current = parseFloat(local);
-           const base = Number.isFinite(current) ? current : value;
-           const next = Math.max(
-             min,
-             base + (e.deltaY < 0 ? wheelStep : -wheelStep),
-           );
-           setLocal(String(next));
-           onChange(next);
-         }}
         onBlur={() => {
           const n = parseFloat(local);
           if (isNaN(n) || n < min) {
@@ -447,6 +467,11 @@ export default function CompoundingTool() {
   const [moneyExplainerOpen, setMoneyExplainerOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
   const [learnOpen, setLearnOpen] = useState(false);
+  // Once the guide reaches the step that teaches the 1/2/3 shortcuts, the
+  // page's keyboard shortcuts stay live so they can be tried in place.
+  const [learnShortcuts, setLearnShortcuts] = useState(false);
+  // Shortcuts are blocked by the guide only up to that point.
+  const learnBlocksKeys = learnOpen && !learnShortcuts;
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [forcedDelta, setForcedDelta] = useState<"blackPink" | "blueBlack" | null>(null);
   const [growthSectionVisible, setGrowthSectionVisible] = useState(true);
@@ -515,6 +540,8 @@ export default function CompoundingTool() {
   );
 
   useEffect(() => {
+    // The c/m explainer panels are big enough to collide with the guide
+    // callout, so these two stay blocked for the whole walkthrough.
     if (quizOpen || learnOpen) return;
 
     const handleExplainerShortcut = (event: KeyboardEvent) => {
@@ -573,7 +600,7 @@ export default function CompoundingTool() {
   ]);
 
   useEffect(() => {
-    if (explainerOpen || moneyExplainerOpen || quizOpen || learnOpen) return;
+    if (explainerOpen || moneyExplainerOpen || quizOpen || learnBlocksKeys) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
@@ -600,7 +627,7 @@ export default function CompoundingTool() {
     explainerOpen,
     moneyExplainerOpen,
     quizOpen,
-    learnOpen,
+    learnBlocksKeys,
     handleAgeChange,
     hoveredDataIndex,
   ]);
@@ -667,7 +694,7 @@ export default function CompoundingTool() {
   // Keyboard shortcuts: 1 toggles Savings, 2 toggles Compounding,
   // 3 toggles Compounding+Yearly Inv.
   useEffect(() => {
-    if (quizOpen || learnOpen) return;
+    if (quizOpen || learnBlocksKeys) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -693,7 +720,7 @@ export default function CompoundingTool() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [quizOpen, learnOpen]);
+  }, [quizOpen, learnBlocksKeys]);
 
   const blueData = calculateGrowthWithContributions(
     initialInvestment,
@@ -856,6 +883,8 @@ export default function CompoundingTool() {
     setForcedDelta(stage.showDelta ?? null);
     if (stage.growthVisible !== undefined)
       setGrowthSectionVisible(stage.growthVisible);
+    if (stage.allowShortcuts !== undefined)
+      setLearnShortcuts(stage.allowShortcuts);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -970,7 +999,7 @@ export default function CompoundingTool() {
             type="button"
             onClick={handleLearnOpen}
             aria-pressed={learnOpen}
-            className={`absolute left-0 top-0 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
+            className={`group absolute left-0 top-0 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
               learnOpen
                 ? "bg-blue-50 text-blue-600"
                 : "text-gray-400 hover:text-gray-700"
@@ -983,6 +1012,7 @@ export default function CompoundingTool() {
               }`}
             />
             Introduction
+            <HoverTooltip label="For parents and teachers." />
           </button>
           <button
             type="button"
