@@ -1042,7 +1042,7 @@ describe("money explainer", () => {
       "Paying for a bus ride to school saves you the hour you would have spent walking.",
     );
     expect(dialog).toHaveTextContent(
-      "Freedom - whether you get to act at all. It is choosing whether to pick up the garden hose.",
+      "Freedom - whether you get to act at all. It is choosing whether to pick up or put down the garden hose.",
     );
     expect(dialog).toHaveTextContent(
       "Knowledge - information you can actually use.",

@@ -13,6 +13,7 @@ const SHORTCUTS = [
   { keys: "3", description: "Toggle Compounding + Yearly Investments" },
   { keys: "C", description: "Open the compounding explainer" },
   { keys: "M", description: "Open the money lesson" },
+  { keys: "i", description: "Open the why it matters lesson" },
   { keys: "← / →", description: "Move through Introduction slides" },
   { keys: "↑ / ↓", description: "Move the selected age or year" },
   { keys: "Home / End", description: "Jump to the end / start of the chart" },

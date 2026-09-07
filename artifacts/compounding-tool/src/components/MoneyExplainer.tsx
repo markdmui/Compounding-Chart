@@ -243,7 +243,7 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 <span>
                   <strong className="font-semibold text-slate-900">Freedom</strong>{" "}
                   - whether you get to act at all. It is choosing whether to pick up
-                  the garden hose.
+                  or put down the garden hose.
                 </span>
               </p>
               <p className="flex items-start gap-3">
@@ -265,8 +265,8 @@ export function MoneyExplainer({ open, onClose }: MoneyExplainerProps) {
                 />
                 <span>
                   <strong className="font-semibold text-slate-900">Knowledge</strong>{" "}
-                  - information you can actually use. Reading about how to fix a bike
-                   is information. Being able to fix it is knowledge. You can spend or
+                  - information you can actually use. Reading about how to make a pizza
+                   is information. Being able to make it is knowledge. You can spend or
                    trade your time and money to acquire knowledge, then sell that
                    knowledge for more money.
                 </span>

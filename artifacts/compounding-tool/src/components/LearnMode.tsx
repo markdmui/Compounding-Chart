@@ -84,8 +84,8 @@ const STEPS: LearnStep[] = [
   {
     target: "chart",
     title: "The Shape of Growth",
-    body: "The chart runs from age 10 to age 60. Pink savings line is your starting money plus deposits. Grey compounding line is that same money left to grow with interest. Blue line is compounding plus new money added every year. Watch how far apart they pull as the years go by. (Shortcut key: up and down arrow keys)",
-    yearBody: "The chart runs from year 1 to year 50. Pink savings line is your starting money plus deposits. Grey compounding line is that same money left to grow with interest. Blue line is compounding plus new money added every year. Watch how far apart they pull as the years go by. (Shortcut key: up and down arrow keys)",
+    body: "The chart runs from age 10 to age 60. Pink savings line is your starting money plus deposits. Grey compounding line is that same money left to grow with interest. Blue line is compounding plus new money added every year. Watch how they diverge as the years go by. (Shortcut key: up and down arrow keys)",
+    yearBody: "The chart runs from year 1 to year 50. Pink savings line is your starting money plus deposits. Grey compounding line is that same money left to grow with interest. Blue line is compounding plus new money added every year. Watch how they diverge as the years go by. (Shortcut key: up and down arrow keys)",
     stage: { showSavings: true, showBlack: true, showBlue: true },
     place: "insideBottomRight",
     nudge: { y: -90 },
@@ -144,14 +144,14 @@ const STEPS: LearnStep[] = [
   {
     target: "delta1",
     title: "What Compounding Is Worth",
-    body: "This first difference is compounding on its own minus savings. It is the money you get purely from letting growth build on growth, without adding a single extra dollar.",
+    body: "This first delta/difference is compounding on its own minus savings. It is the money you get purely from letting growth build on growth, without adding a single extra dollar.",
     stage: { showDelta: "blackPink", ageIndex: 50 },
     place: "above",
   },
   {
     target: "delta2",
     title: "What Adding Money Is Worth",
-    body: "This second difference is compounding plus yearly investing minus compounding on its own. It is what your yearly additions are worth once they have compounded too.",
+    body: "This second delta/difference is compounding plus yearly investing minus compounding on its own. It is what your yearly additions are worth once they have compounded too.",
     stage: { showDelta: "blueBlack", ageIndex: 50 },
     place: "above",
   },
@@ -165,7 +165,7 @@ const STEPS: LearnStep[] = [
   {
     target: "summary",
     title: "The Quick Summary",
-    body: "Your interest earnings and total at three points in life, and how long it takes your money to double, triple, and quadruple at this rate.",
+    body: "Your interest earnings and total at three key points in life, and how long it takes your money to double, triple, and quadruple at this rate.",
     stage: { lessonsSummaryOpen: true },
     place: "above",
   },
@@ -208,6 +208,51 @@ const CALLOUT_WIDTH = 340;
 const CALLOUT_HEIGHT = 200;
 const CALLOUT_GAP = 16;
 const CALLOUT_INSET = 24;
+/**
+ * Footer navigation. Deliberately as faint as the "3 of 16" counter beside it:
+ * there when the reader wants it, never competing with the slide copy.
+ */
+function FooterLink({
+  label,
+  keyHint,
+  onClick,
+  disabled,
+  emphasis,
+}: {
+  label: string;
+  keyHint: string;
+  onClick: () => void;
+  disabled?: boolean;
+  /** one shade darker, for the link that carries the walkthrough forward */
+  emphasis?: boolean;
+}) {
+  return (
+    <span className="group relative inline-flex">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={`rounded-md px-2 py-1 text-xs transition-colors hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40 ${
+          emphasis
+            ? "text-slate-500 hover:text-slate-800 focus-visible:text-slate-800"
+            : "text-slate-400 hover:text-slate-600 focus-visible:text-slate-600"
+        }`}
+      >
+        {label}
+      </button>
+      {/* Above the link: the callout clips its own overflow, so a tooltip
+          hanging below the footer gets cut off at the bottom edge. */}
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600 opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {keyHint}
+      </span>
+    </span>
+  );
+}
+
 const SHORTCUT_TIP_CLASSES =
   "inline-block whitespace-nowrap rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-xs font-semibold leading-5 text-slate-600";
 
@@ -421,6 +466,10 @@ export function LearnMode({
     setStep((prev) => (prev >= STEPS.length - 1 ? prev : prev + 1));
   }, []);
 
+  const goPrev = useCallback(() => {
+    setStep((prev) => (prev <= 0 ? prev : prev - 1));
+  }, []);
+
   if (!open) return null;
 
   return createPortal(
@@ -494,23 +543,21 @@ export function LearnMode({
               <span className="text-xs text-slate-400">
                 {step + 1} of {STEPS.length}
               </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
-                >
-                  Close
-                </button>
-                {!isLast && (
-                  <button
-                    type="button"
-                    onClick={goNext}
-                    className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-700"
-                  >
-                    Next
-                  </button>
-                )}
+              <div className="flex items-center gap-1">
+                <FooterLink label="Close" keyHint="Esc" onClick={onClose} />
+                <FooterLink
+                  label="Previous"
+                  keyHint="←"
+                  onClick={goPrev}
+                  disabled={step === 0}
+                />
+                <FooterLink
+                  label="Next"
+                  keyHint="→"
+                  onClick={goNext}
+                  disabled={isLast}
+                  emphasis
+                />
               </div>
             </div>
           </div>

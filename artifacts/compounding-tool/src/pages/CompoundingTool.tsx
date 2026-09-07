@@ -20,6 +20,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { CompoundingExplainer } from "@/components/CompoundingExplainer";
 import { MoneyExplainer } from "@/components/MoneyExplainer";
+import { WhyExplainer } from "@/components/WhyExplainer";
 import { QuizMode } from "@/components/QuizMode";
 import { LearnMode, type LearnStageState } from "@/components/LearnMode";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
@@ -48,7 +49,7 @@ type GrowthBarSeries = {
 };
 
 /** Fades in on hover or keyboard focus of the nearest `group` ancestor. */
-function HoverTooltip({ label }: { label: string }) {
+function HoverTooltip({ label }: { label: React.ReactNode }) {
   return (
     <span
       role="tooltip"
@@ -59,8 +60,23 @@ function HoverTooltip({ label }: { label: string }) {
   );
 }
 
-function ShortcutTooltip({ shortcut }: { shortcut: "C" | "M" }) {
-  return <HoverTooltip label={`Shortcut: ${shortcut}`} />;
+function ShortcutTooltip({ shortcut }: { shortcut: "C" | "M" | "i" }) {
+  return (
+    <HoverTooltip
+      label={
+        <>
+          Shortcut:{" "}
+          {/* A lowercase i is small and easy to misread, so that one key is set
+              larger and unbolded. C and M inherit the label's own style. */}
+          {shortcut === "i" ? (
+            <span className="text-[15px] font-normal">{shortcut}</span>
+          ) : (
+            shortcut
+          )}
+        </>
+      }
+    />
+  );
 }
 
 function TimeModeToggle({
@@ -465,6 +481,7 @@ export default function CompoundingTool() {
   const [initialInvestment, setInitialInvestment] = useState(DEFAULTS.initialInvestment);
   const [explainerOpen, setExplainerOpen] = useState(false);
   const [moneyExplainerOpen, setMoneyExplainerOpen] = useState(false);
+  const [whyExplainerOpen, setWhyExplainerOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
   const [learnOpen, setLearnOpen] = useState(false);
   // Once the guide reaches the step that teaches the 1/2/3 shortcuts, the
@@ -507,12 +524,49 @@ export default function CompoundingTool() {
   );
   const handleMoneyExplainerOpen = useCallback(() => {
     setExplainerOpen(false);
+    setWhyExplainerOpen(false);
     setMoneyExplainerOpen(true);
+  }, []);
+  const handleWhyExplainerClose = useCallback(
+    () => setWhyExplainerOpen(false),
+    [],
+  );
+  const handleWhyExplainerOpen = useCallback(() => {
+    setExplainerOpen(false);
+    setMoneyExplainerOpen(false);
+    setWhyExplainerOpen(true);
+  }, []);
+  // Clicking a question whose panel is already open closes it, so the link
+  // behaves the same way its keyboard shortcut does.
+  const toggleExplainer = useCallback(() => {
+    setExplainerOpen((open) => {
+      if (open) return false;
+      setMoneyExplainerOpen(false);
+      setWhyExplainerOpen(false);
+      return true;
+    });
+  }, []);
+  const toggleMoneyExplainer = useCallback(() => {
+    setMoneyExplainerOpen((open) => {
+      if (open) return false;
+      setExplainerOpen(false);
+      setWhyExplainerOpen(false);
+      return true;
+    });
+  }, []);
+  const toggleWhyExplainer = useCallback(() => {
+    setWhyExplainerOpen((open) => {
+      if (open) return false;
+      setExplainerOpen(false);
+      setMoneyExplainerOpen(false);
+      return true;
+    });
   }, []);
   // Quiz Mode takes over the screen: close anything else that is open first.
   const handleQuizOpen = useCallback(() => {
     setExplainerOpen(false);
     setMoneyExplainerOpen(false);
+    setWhyExplainerOpen(false);
     setQuizOpen(true);
   }, []);
   const handleQuizClose = useCallback(() => setQuizOpen(false), []);
@@ -547,8 +601,7 @@ export default function CompoundingTool() {
     const handleExplainerShortcut = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
       if (
-        key !== "c" &&
-        key !== "m" ||
+        (key !== "c" && key !== "m" && key !== "i") ||
         event.ctrlKey ||
         event.metaKey ||
         event.altKey ||
@@ -567,9 +620,20 @@ export default function CompoundingTool() {
         return;
       }
 
-      if (key === "c" && moneyExplainerOpen) {
+      if (key === "i") {
+        event.preventDefault();
+        if (whyExplainerOpen) {
+          setWhyExplainerOpen(false);
+        } else {
+          handleWhyExplainerOpen();
+        }
+        return;
+      }
+
+      if (key === "c" && (moneyExplainerOpen || whyExplainerOpen)) {
         event.preventDefault();
         setMoneyExplainerOpen(false);
+        setWhyExplainerOpen(false);
         setExplainerOpen(true);
         return;
       }
@@ -584,7 +648,7 @@ export default function CompoundingTool() {
         return;
       }
 
-      if (moneyExplainerOpen) return;
+      if (moneyExplainerOpen || whyExplainerOpen) return;
 
       event.preventDefault();
       setExplainerOpen((open) => !open);
@@ -594,9 +658,11 @@ export default function CompoundingTool() {
     return () => window.removeEventListener("keydown", handleExplainerShortcut);
   }, [
     handleMoneyExplainerOpen,
+    handleWhyExplainerOpen,
     learnOpen,
     moneyExplainerOpen,
     quizOpen,
+    whyExplainerOpen,
   ]);
 
   useEffect(() => {
@@ -880,6 +946,7 @@ export default function CompoundingTool() {
     if (stage.ageIndex !== undefined) handleAgeChange(stage.ageIndex);
     if (stage.explainerOpen !== undefined) setExplainerOpen(stage.explainerOpen);
     setMoneyExplainerOpen(stage.moneyExplainerOpen === true);
+    setWhyExplainerOpen(false);
     setForcedDelta(stage.showDelta ?? null);
     if (stage.growthVisible !== undefined)
       setGrowthSectionVisible(stage.growthVisible);
@@ -998,6 +1065,7 @@ export default function CompoundingTool() {
           <button
             type="button"
             onClick={handleLearnOpen}
+            aria-label="Introduction"
             aria-pressed={learnOpen}
             className={`group absolute left-0 top-0 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
               learnOpen
@@ -1751,32 +1819,8 @@ export default function CompoundingTool() {
                       <>
                         <button
                           type="button"
-                          data-tour="whatis"
-                          onClick={() => {
-                            setMoneyExplainerOpen(false);
-                            setExplainerOpen(true);
-                          }}
-                          aria-label="What is compounding?"
-                          className="group relative cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                          aria-haspopup="dialog"
-                        >
-                          What is compounding?
-                          <ShortcutTooltip shortcut="C" />
-                        </button>{" "}
-                        Compounding is a type of growth. What is growth? Growth is change across time. The shape of compounded growth looks like a hockey stick vs. linear growth which looks like a straight line.
-                      </>,
-                          "Compounding is when something grows. That growth gets put back into itself and grows again the next year. This repeats forever, so the growth itself gets faster and larger the longer you compound.",
-                      "Start as early as possible; time turns small savings into fortunes.",
-                      "Consistency beats amount; investing early is better than investing a lot later in life.",
-                      "Reinvest your interest as yearly additions so your interest earns more interest.",
-                      "Patience is your best friend because growth takes time.",
-                      <>
-                        <button
-                          type="button"
                           data-tour="money-link"
-                          onClick={() => {
-                            handleMoneyExplainerOpen();
-                          }}
+                          onClick={toggleMoneyExplainer}
                           aria-label="What is money?"
                           className="group relative cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                           aria-haspopup="dialog"
@@ -1786,9 +1830,42 @@ export default function CompoundingTool() {
                         </button>{" "}
                         Money is a way to store and trade value.
                       </>,
+                      <>
+                        <button
+                          type="button"
+                          data-tour="whatis"
+                          onClick={toggleExplainer}
+                          aria-label="What is compounding?"
+                          className="group relative cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                          aria-haspopup="dialog"
+                        >
+                          What is compounding?
+                          <ShortcutTooltip shortcut="C" />
+                        </button>{" "}
+                        Compounding is a type of growth. What is growth? Growth is change across time. The shape of compounded growth looks like a hockey stick vs. linear growth which looks like a straight line.
+                      </>,
+                          "Compounding is when something grows. That growth gets put back into itself and grows again the next year. The growth gets faster and larger the longer you keep your money invested.",
+                      "Start as early as possible; time turns small savings into fortunes.",
+                      "Consistency beats amount; investing early is better than investing a lot later in life.",
+                      "Reinvest your interest as yearly additions so your interest earns more interest.",
+                      "Patience is your best friend because growth and financial independence take time.",
+                      <>
+                        <button
+                          type="button"
+                          data-tour="why-link"
+                          onClick={toggleWhyExplainer}
+                          aria-label="Why is this important?"
+                          className="group relative cursor-pointer font-bold text-black no-underline transition-colors hover:text-blue-600 hover:underline hover:decoration-blue-300 hover:underline-offset-2 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                          aria-haspopup="dialog"
+                        >
+                          Why is this important?
+                          <ShortcutTooltip shortcut="i" />
+                        </button>{" "}
+                        Money buys choices. Enough of it buys the freedom to spend your life on work you actually care about.
+                      </>,
                     ] as React.ReactNode[]).map((lesson, i) => (
                       <li key={i} className="flex gap-2 text-[13px] text-gray-600">
-                        <span className="text-gray-400 flex-shrink-0">{i + 1}.</span>
+                        <span className="text-gray-400 flex-shrink-0 tabular-nums">{i + 1}.</span>
                         <span>{lesson}</span>
                       </li>
                     ))}
@@ -2183,6 +2260,7 @@ export default function CompoundingTool() {
         open={moneyExplainerOpen}
         onClose={handleMoneyExplainerClose}
       />
+      <WhyExplainer open={whyExplainerOpen} onClose={handleWhyExplainerClose} />
       <LearnMode
         open={learnOpen}
         onClose={handleLearnClose}
