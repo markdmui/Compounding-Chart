@@ -11,6 +11,7 @@ const SHORTCUTS = [
   { keys: "1", description: "Toggle Savings-only" },
   { keys: "2", description: "Toggle Compounding-only" },
   { keys: "3", description: "Toggle Compounding + Yearly Investments" },
+  { keys: "H", description: "Show or hide the growth and lessons panels" },
   { keys: "C", description: "Open the compounding explainer" },
   { keys: "M", description: "Open the money lesson" },
   { keys: "i", description: "Open the why it matters lesson" },
@@ -57,7 +58,7 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
         aria-modal="true"
         aria-labelledby="shortcuts-dialog-title"
         tabIndex={-1}
-        className="pointer-events-auto relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl outline-none"
+        className="pointer-events-auto relative w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl outline-none"
       >
         <button
           type="button"
@@ -76,19 +77,23 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
         <p className="mt-1 text-sm text-gray-500">
           Use these keys to move through the compounding tool.
         </p>
-        <ul className="mt-5 space-y-2.5">
-          {SHORTCUTS.map(({ keys, description }) => (
-            <li
-              key={keys}
-              className="flex items-center justify-between gap-4 text-sm text-gray-700"
-            >
-              <span>{description}</span>
-              <kbd className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 font-mono text-sm font-bold text-gray-600 shadow-sm">
-                {keys}
-              </kbd>
-            </li>
+        <div className="mt-5 grid grid-cols-1 gap-x-10 md:grid-cols-2">
+          {[SHORTCUTS.slice(0, 8), SHORTCUTS.slice(8)].map((column, columnIndex) => (
+            <ul key={columnIndex} className="space-y-2.5">
+              {column.map(({ keys, description }) => (
+                <li
+                  key={keys}
+                  className="flex items-center justify-between gap-4 text-sm text-gray-700"
+                >
+                  <span>{description}</span>
+                  <kbd className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 font-mono text-sm font-bold text-gray-600 shadow-sm">
+                    {keys}
+                  </kbd>
+                </li>
+              ))}
+            </ul>
           ))}
-        </ul>
+        </div>
       </section>
     </div>,
     document.body,

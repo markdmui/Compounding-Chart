@@ -163,15 +163,49 @@ describe("growth table chart navigation", () => {
     expect(dialog).toHaveTextContent("← / →");
     expect(dialog).toHaveTextContent("Move through Introduction slides");
     expect(dialog).toHaveTextContent("1–4 (Quiz Mode)");
+    expect(dialog).toHaveTextContent("Show or hide the growth and lessons panels");
     expect(dialog).not.toHaveTextContent("Control + ← / → (Quiz Mode)");
     expect(dialog).toHaveTextContent("Enter (Quiz Mode)");
     expect(dialog).not.toHaveTextContent("Control + 1");
     expect(dialog).not.toHaveTextContent("Ctrl + 1");
+    expect(dialog).toHaveClass("max-w-3xl");
+    const shortcutColumns = within(dialog).getAllByRole("list");
+    expect(shortcutColumns).toHaveLength(2);
+    expect(shortcutColumns[0]).not.toHaveTextContent("Move through Introduction slides");
+    expect(shortcutColumns[1]).toHaveTextContent("Move through Introduction slides");
 
     fireEvent.keyDown(window, { key: "K" });
     expect(
       screen.queryByRole("dialog", { name: "Keyboard shortcuts" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("toggles and resynchronizes the growth and lessons panels with H", () => {
+    render(<CompoundingTool />);
+
+    expect(screen.getByTestId("growth-heading")).toBeInTheDocument();
+    expect(screen.getByText("Money is a way to store and trade value.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("growth-heading").closest("button")!);
+    expect(screen.queryByTestId("growth-money-10")).not.toBeInTheDocument();
+    expect(screen.getByText("Money is a way to store and trade value.")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "h" });
+
+    expect(screen.getByTestId("growth-heading").closest(".side-by-side-right")).toHaveClass(
+      "hidden",
+    );
+    expect(
+      screen.queryByText("Money is a way to store and trade value."),
+    ).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "H" });
+
+    expect(screen.getByTestId("growth-heading").closest(".side-by-side-right")).not.toHaveClass(
+      "hidden",
+    );
+    expect(screen.getByTestId("growth-money-10")).toBeInTheDocument();
+    expect(screen.getByText("Money is a way to store and trade value.")).toBeInTheDocument();
   });
 
   it("highlights the matching chart curve in yellow when its legend label is hovered", async () => {
