@@ -49,11 +49,19 @@ type GrowthBarSeries = {
 };
 
 /** Fades in on hover or keyboard focus of the nearest `group` ancestor. */
-function HoverTooltip({ label }: { label: React.ReactNode }) {
+function HoverTooltip({
+  label,
+  placement = "below",
+}: {
+  label: React.ReactNode;
+  placement?: "below" | "above";
+}) {
   return (
     <span
       role="tooltip"
-      className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-gray-200 bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+      className={`pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-md border border-gray-200 bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 ${
+        placement === "above" ? "bottom-full mb-1" : "top-full mt-1"
+      }`}
     >
       {label}
     </span>
@@ -1083,7 +1091,8 @@ export default function CompoundingTool() {
           <div className="side-by-side-left">
 
           {/* Header */}
-          <div className="mb-4 md:mb-5 flex items-start justify-between gap-x-6 gap-y-2 px-4">
+          {/* pt-8 reserves room for the Introduction tooltip, which opens upward. */}
+          <div className="pt-4 mb-4 md:mb-5 flex items-start justify-between gap-x-6 gap-y-2 px-4">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <span className="text-lg md:text-xl text-gray-900">
                 Power of Compounding
@@ -1132,7 +1141,7 @@ export default function CompoundingTool() {
                   }`}
                 />
                 Introduction
-                <HoverTooltip label="Teachers/Parents" />
+                <HoverTooltip label="Teachers/Parents" placement="above" />
               </button>
               <button
                 type="button"
