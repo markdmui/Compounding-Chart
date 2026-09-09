@@ -805,10 +805,15 @@ describe("money explainer", () => {
       expect(
         screen.getByRole("button", { name: "What is money?" }),
       ).toHaveAttribute("data-tour", "money-link");
+      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Next" }),
+      ).not.toBeInTheDocument();
 
-      await user.click(
-        screen.getByRole("button", { name: "Close the walkthrough" }),
-      );
+      await user.click(screen.getByRole("button", { name: "Done" }));
+      expect(
+        screen.queryByRole("button", { name: "Close the walkthrough" }),
+      ).not.toBeInTheDocument();
     } finally {
       HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
     }

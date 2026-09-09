@@ -158,14 +158,14 @@ const STEPS: LearnStep[] = [
   {
     target: "lessons",
     title: "The Lessons",
-    body: "Seven key ideas worth remembering. The most important one is the third: start as early as you can, because time does most of the work.",
+    body: "Seven key ideas worth remembering. The most important one is the first: knowing what money is at its core is key to being a good investor and achieving financial independence.",
     stage: { lessonsSummaryOpen: true, showDelta: null, growthVisible: true },
     place: "above",
   },
   {
     target: "summary",
     title: "The Quick Summary",
-    body: "Your interest earnings and total at three key points in life, and how long it takes your money to double, triple, and quadruple at this rate.",
+    body: "The money you earn from interest each year, how much you have at that year, and how long it takes your money to double, triple, and quadruple at this rate.",
     stage: { lessonsSummaryOpen: true },
     place: "above",
   },
@@ -218,6 +218,7 @@ function FooterLink({
   onClick,
   disabled,
   emphasis,
+  done,
 }: {
   label: string;
   keyHint: string;
@@ -225,6 +226,7 @@ function FooterLink({
   disabled?: boolean;
   /** one shade darker, for the link that carries the walkthrough forward */
   emphasis?: boolean;
+  done?: boolean;
 }) {
   return (
     <span className="group relative inline-flex">
@@ -234,7 +236,9 @@ function FooterLink({
         disabled={disabled}
         aria-label={label}
         className={`rounded-md px-2 py-1 text-xs transition-colors hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40 ${
-          emphasis
+          done
+            ? "text-slate-900 hover:text-slate-950 focus-visible:text-slate-950"
+            : emphasis
             ? "text-slate-500 hover:text-slate-800 focus-visible:text-slate-800"
             : "text-slate-400 hover:text-slate-600 focus-visible:text-slate-600"
         }`}
@@ -552,11 +556,11 @@ export function LearnMode({
                   disabled={step === 0}
                 />
                 <FooterLink
-                  label="Next"
-                  keyHint="→"
-                  onClick={goNext}
-                  disabled={isLast}
-                  emphasis
+                  label={isLast ? "Done" : "Next"}
+                  keyHint={isLast ? "Esc" : "→"}
+                  onClick={isLast ? onClose : goNext}
+                  emphasis={!isLast}
+                  done={isLast}
                 />
               </div>
             </div>

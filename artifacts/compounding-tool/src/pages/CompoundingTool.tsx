@@ -1155,7 +1155,7 @@ export default function CompoundingTool() {
                   }`}
                 />
                 Introduction
-                <HoverTooltip label="Teachers/Parents" placement="above" />
+                <HoverTooltip label="Parents & teachers start here" placement="above" />
               </button>
               <button
                 type="button"
