@@ -776,9 +776,17 @@ export default function CompoundingTool() {
         return;
       }
 
-      if (e.key === "1") setShowSavings((prev) => !prev);
-      else if (e.key === "2") setShowBlack((prev) => !prev);
-      else if (e.key === "3") setShowBlue((prev) => !prev);
+      const key = e.key.toLowerCase();
+      if (key === "1") setShowSavings((prev) => !prev);
+      else if (key === "2") setShowBlack((prev) => !prev);
+      else if (key === "3") setShowBlue((prev) => !prev);
+      else if (key === "h") {
+        const growthPanelVisible = growthSectionVisible && growthTableOpen;
+        const nextVisible = !(growthPanelVisible || lessonsSummaryOpen);
+        setGrowthSectionVisible(nextVisible);
+        setGrowthTableOpen(nextVisible);
+        setLessonsSummaryOpen(nextVisible);
+      }
       else return;
 
       e.preventDefault();
@@ -786,7 +794,13 @@ export default function CompoundingTool() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [quizOpen, learnBlocksKeys]);
+  }, [
+    quizOpen,
+    learnBlocksKeys,
+    growthSectionVisible,
+    growthTableOpen,
+    lessonsSummaryOpen,
+  ]);
 
   const blueData = calculateGrowthWithContributions(
     initialInvestment,
@@ -1080,7 +1094,7 @@ export default function CompoundingTool() {
               }`}
             />
             Introduction
-            <HoverTooltip label="For parents and teachers." />
+            <HoverTooltip label="Teachers/Parents" />
           </button>
           <button
             type="button"
