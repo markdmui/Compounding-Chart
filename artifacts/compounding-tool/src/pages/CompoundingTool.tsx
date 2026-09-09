@@ -1119,7 +1119,7 @@ export default function CompoundingTool() {
                 onClick={handleLearnOpen}
                 aria-label="Introduction"
                 aria-pressed={learnOpen}
-                className={`group inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
+                className={`group relative inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
                   learnOpen
                     ? "bg-blue-50 text-blue-600"
                     : "text-gray-400 hover:text-gray-700"
