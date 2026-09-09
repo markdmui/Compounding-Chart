@@ -587,6 +587,20 @@ export default function CompoundingTool() {
   const handleAgeChange = useCallback((index: number) => {
     setHoveredDataIndex(Math.min(YEARS, Math.max(0, index)));
   }, []);
+
+  // Dragging across the chart scrubs the selected year. The release is bound to
+  // the window so letting go outside the chart still ends the drag.
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  useEffect(() => {
+    if (!isScrubbing) return;
+    const stop = () => setIsScrubbing(false);
+    window.addEventListener("mouseup", stop);
+    window.addEventListener("blur", stop);
+    return () => {
+      window.removeEventListener("mouseup", stop);
+      window.removeEventListener("blur", stop);
+    };
+  }, [isScrubbing]);
   const handleLearnChartNavigate = useCallback(
     (delta: number) => {
       handleAgeChange(hoveredDataIndex + delta);
@@ -1194,7 +1208,9 @@ export default function CompoundingTool() {
               ref={chartContainerRef}
               data-testid="chart-curve-area"
               data-highlighted-curve={hoveredLegend ?? undefined}
-              className="chart-curve-area relative h-[32vh] md:h-[38vh] xl:h-[44vh] min-h-[220px] max-h-[520px] w-full"
+              className={`chart-curve-area relative h-[32vh] md:h-[38vh] xl:h-[44vh] min-h-[220px] max-h-[520px] w-full ${
+                isScrubbing ? "cursor-grabbing select-none" : "cursor-grab"
+              }`}
             >
               {/* Floating curve values follow the selected point */}
               {(() => {
@@ -1297,12 +1313,19 @@ export default function CompoundingTool() {
                 <LineChart
                   data={chartData}
                   margin={{ top: 5, right: 24, left: 10, bottom: 20 }}
+                  onMouseDown={(state: any) => {
+                    setIsScrubbing(true);
+                    const activeIndex = state?.activeTooltipIndex;
+                    if (activeIndex === undefined || activeIndex === null) return;
+                    handleAgeChange(Number(activeIndex));
+                  }}
                   onMouseMove={(state: any) => {
                     const activeIndex = state?.activeTooltipIndex;
                     if (activeIndex === undefined || activeIndex === null) return;
                     const nextIndex = Number(activeIndex);
                     setChartHoveredIndex((current) => current === nextIndex ? current : nextIndex);
                      setAxisHoveredIndex((current) => current === nextIndex ? current : nextIndex);
+                    if (isScrubbing) handleAgeChange(nextIndex);
                   }}
                    onMouseLeave={() => {
                      setChartHoveredIndex(null);
@@ -1378,6 +1401,9 @@ export default function CompoundingTool() {
                              onMouseLeave={() => setXAxisLabelActive(false)}
                              onFocus={() => setXAxisLabelActive(true)}
                              onBlur={() => setXAxisLabelActive(false)}
+                             // This label is a control, not plot area: keep the
+                             // chart's drag-to-scrub from starting on it.
+                             onMouseDown={(event) => event.stopPropagation()}
                              onClick={() =>
                                setXAxisMode((mode) => (mode === "age" ? "year" : "age"))
                              }
