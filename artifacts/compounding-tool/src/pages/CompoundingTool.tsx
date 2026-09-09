@@ -1074,64 +1074,6 @@ export default function CompoundingTool() {
   return (
     <div className="flex min-h-screen bg-white p-4 md:p-5">
       <div className="my-auto w-full px-[50px]">
-        {/* Header */}
-        <div className="relative mb-4 md:mb-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-          <button
-            type="button"
-            onClick={handleLearnOpen}
-            aria-label="Introduction"
-            aria-pressed={learnOpen}
-            className={`group absolute left-0 top-0 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
-              learnOpen
-                ? "bg-blue-50 text-blue-600"
-                : "text-gray-400 hover:text-gray-700"
-            }`}
-          >
-            <span
-              aria-hidden="true"
-              className={`h-1.5 w-1.5 rounded-full ${
-                learnOpen ? "bg-blue-500" : "bg-gray-300"
-              }`}
-            />
-            Introduction
-            <HoverTooltip label="Teachers/Parents" />
-          </button>
-          <button
-            type="button"
-            onClick={handleQuizOpen}
-            aria-haspopup="dialog"
-            className="absolute right-0 top-0 text-sm text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
-          >
-            Quiz Mode
-          </button>
-          <span className="text-lg md:text-xl text-gray-900">
-            Power of Compounding
-          </span>
-          <InlineNumberInput
-            dataTour="title"
-            value={initialInvestment}
-            onChange={setInitialInvestment}
-            prefix="$"
-            min={0}
-            step={100}
-            className="text-lg md:text-xl px-3 py-1"
-            inputClassName="w-16 text-gray-900 text-lg md:text-xl"
-          />
-          <span className="text-lg md:text-xl text-gray-900">
-            with Yearly Interest Rate of
-          </span>
-          <InlineNumberInput
-            dataTour="rate"
-            value={annualRate}
-            onChange={setAnnualRate}
-            suffix="%"
-            min={0}
-            step={0.5}
-            wheelStep={1}
-            className="text-lg md:text-xl"
-            inputClassName="w-[2ch] text-gray-900 text-lg md:text-xl"
-          />
-        </div>
 
         {/* Main Card */}
         <div className="bg-white">
@@ -1139,6 +1081,79 @@ export default function CompoundingTool() {
           {/* 3xl side-by-side wrapper: left=chart+controls, right=growth table */}
           <div className="side-by-side-wrapper">
           <div className="side-by-side-left">
+
+          {/* Header */}
+          <div className="mb-4 md:mb-5 flex items-start justify-between gap-x-6 gap-y-2 px-4">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="text-lg md:text-xl text-gray-900">
+                Power of Compounding
+              </span>
+              <InlineNumberInput
+                dataTour="title"
+                value={initialInvestment}
+                onChange={setInitialInvestment}
+                prefix="$"
+                min={0}
+                step={100}
+                className="text-lg md:text-xl px-3 py-1"
+                inputClassName="w-16 text-gray-900 text-lg md:text-xl"
+              />
+              <span className="text-lg md:text-xl text-gray-900">
+                with Yearly Interest Rate of
+              </span>
+              <InlineNumberInput
+                dataTour="rate"
+                value={annualRate}
+                onChange={setAnnualRate}
+                suffix="%"
+                min={0}
+                step={0.5}
+                wheelStep={1}
+                className="text-lg md:text-xl"
+                inputClassName="w-[2ch] text-gray-900 text-lg md:text-xl"
+              />
+            </div>
+            <div className="flex shrink-0 flex-col items-start gap-0.5">
+              <button
+                type="button"
+                onClick={handleLearnOpen}
+                aria-label="Introduction"
+                aria-pressed={learnOpen}
+                className={`group inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
+                  learnOpen
+                    ? "bg-blue-50 text-blue-600"
+                    : "text-gray-400 hover:text-gray-700"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    learnOpen ? "bg-blue-500" : "bg-gray-300"
+                  }`}
+                />
+                Introduction
+                <HoverTooltip label="Teachers/Parents" />
+              </button>
+              <button
+                type="button"
+                onClick={handleQuizOpen}
+                aria-haspopup="dialog"
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
+                  quizOpen
+                    ? "bg-blue-50 text-blue-600"
+                    : "text-gray-400 hover:text-gray-700"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    quizOpen ? "bg-blue-500" : "bg-gray-300"
+                  }`}
+                />
+                Quiz Mode
+              </button>
+            </div>
+          </div>
 
           {/* Chart Section */}
           <div ref={chartSectionRef} data-tour="chart" className="relative p-4 pb-2">
