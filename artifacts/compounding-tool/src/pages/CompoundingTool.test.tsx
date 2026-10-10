@@ -71,11 +71,30 @@ function expectSynchronizedChartState(age: number) {
   );
 }
 
-function enableComparisonCurves() {
-  fireEvent.click(screen.getByRole("button", { name: "Compounding" }));
-  fireEvent.click(
-    screen.getByRole("button", { name: "Compounding+Yearly Inv." }),
+/**
+ * The chart legend is the series control. Look the toggles up by data-tour
+ * rather than by label, because two of the three labels embed the initial
+ * investment and change whenever that input changes.
+ */
+function seriesToggle(series: "savings" | "compounding" | "blue") {
+  const button = document.querySelector<HTMLButtonElement>(
+    `[data-tour="btn-${series}"]`,
   );
+  if (!button) throw new Error(`no legend toggle for "${series}"`);
+  return button;
+}
+
+function expectSeriesOn(series: "savings" | "compounding" | "blue") {
+  expect(seriesToggle(series)).toHaveAttribute("aria-pressed", "true");
+}
+
+function expectSeriesOff(series: "savings" | "compounding" | "blue") {
+  expect(seriesToggle(series)).toHaveAttribute("aria-pressed", "false");
+}
+
+function enableComparisonCurves() {
+  fireEvent.click(seriesToggle("compounding"));
+  fireEvent.click(seriesToggle("blue"));
 }
 
 describe("growth table chart navigation", () => {
@@ -112,7 +131,7 @@ describe("growth table chart navigation", () => {
 
   it("updates the growth bars when yearly investments change in compounding mode", () => {
     render(<CompoundingTool />);
-    fireEvent.click(screen.getByRole("button", { name: "Compounding" }));
+    fireEvent.click(seriesToggle("compounding"));
     const contributionInputs = screen.getAllByRole("spinbutton").slice(-5);
 
     fireEvent.wheel(contributionInputs[0], { deltaY: -100 });
@@ -122,9 +141,7 @@ describe("growth table chart navigation", () => {
       expectedMoney = expectedMoney * (1 + RATE) + 300;
     }
 
-    expect(
-      screen.getByRole("button", { name: "Compounding+Yearly Inv." }),
-    ).toHaveClass("bg-blue-100");
+    expectSeriesOn("blue");
     expect(screen.getByTestId("growth-heading")).toHaveTextContent(
       "Compounding plus Additional Investments Over Time",
     );
@@ -375,10 +392,10 @@ describe("growth table chart navigation", () => {
     await user.type(annualRateInput, "15");
     await user.clear(contributionInputs[1]);
     await user.type(contributionInputs[1], "500");
-    await user.click(screen.getByRole("button", { name: "Savings" }));
-    await user.click(screen.getByRole("button", { name: "Compounding" }));
+    await user.click(seriesToggle("savings"));
+    await user.click(seriesToggle("compounding"));
     await user.click(
-      screen.getByRole("button", { name: "Compounding+Yearly Inv." }),
+      seriesToggle("blue"),
     );
 
     await user.click(screen.getByRole("button", { name: "Reset" }));
@@ -392,15 +409,9 @@ describe("growth table chart navigation", () => {
       "200",
       "200",
     ]);
-    expect(screen.getByRole("button", { name: "Savings" })).toHaveClass(
-      "bg-pink-100",
-    );
-    expect(screen.getByRole("button", { name: "Compounding" })).not.toHaveClass(
-      "bg-gray-200",
-    );
-    expect(
-      screen.getByRole("button", { name: "Compounding+Yearly Inv." }),
-    ).not.toHaveClass("bg-blue-100");
+    expectSeriesOn("savings");
+    expectSeriesOff("compounding");
+    expectSeriesOff("blue");
   });
 
   it("loads the saved comparison values with Control+1", () => {
@@ -418,15 +429,9 @@ describe("growth table chart navigation", () => {
       "2000",
       "5000",
     ]);
-    expect(screen.getByRole("button", { name: "Savings" })).toHaveClass(
-      "bg-pink-100",
-    );
-    expect(screen.getByRole("button", { name: "Compounding" })).toHaveClass(
-      "bg-gray-200",
-    );
-    expect(
-      screen.getByRole("button", { name: "Compounding+Yearly Inv." }),
-    ).toHaveClass("bg-blue-100");
+    expectSeriesOn("savings");
+    expectSeriesOn("compounding");
+    expectSeriesOn("blue");
   });
 
   it("updates the growth heading according to mode priority", async () => {
@@ -434,11 +439,9 @@ describe("growth table chart navigation", () => {
     render(<CompoundingTool />);
 
     const heading = screen.getByTestId("growth-heading");
-    const savingsButton = screen.getByRole("button", { name: "Savings" });
-    const compoundingButton = screen.getByRole("button", { name: "Compounding" });
-    const blueButton = screen.getByRole("button", {
-      name: "Compounding+Yearly Inv.",
-    });
+    const savingsButton = seriesToggle("savings");
+    const compoundingButton = seriesToggle("compounding");
+    const blueButton = seriesToggle("blue");
 
     expect(heading).toHaveTextContent("Savings Growth Over Time");
 
@@ -462,39 +465,42 @@ describe("growth table chart navigation", () => {
     expect(heading).toHaveTextContent("Growth Over Time");
   });
 
-  it("shows only the legend labels for visible chart curves", async () => {
+  it("keeps every legend toggle on screen and tracks which curves are drawn", async () => {
     const user = userEvent.setup();
     render(<CompoundingTool />);
 
+    // All three stay mounted whatever their state - a curve you switch off has
+    // to remain switchable back on from the same control.
     expect(
       screen.getByRole("button", { name: "Savings-Only (no compounding)" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "$1,000 + Interest Only" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "$1,000+ Yearly Investments" }),
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Compounding" }));
-    expect(
       screen.getByRole("button", { name: "$1,000 + Interest Only" }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "$1,000+ Yearly Investments" }),
-    ).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", { name: "Compounding+Yearly Inv." }),
-    );
     expect(
       screen.getByRole("button", { name: "$1,000+ Yearly Investments" }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Savings" }));
+    expectSeriesOn("savings");
+    expectSeriesOff("compounding");
+    expectSeriesOff("blue");
+
+    await user.click(seriesToggle("compounding"));
+    expectSeriesOn("compounding");
+    expectSeriesOff("blue");
+
+    await user.click(seriesToggle("blue"));
+    expectSeriesOn("blue");
+
+    await user.click(seriesToggle("savings"));
+    expectSeriesOff("savings");
     expect(
-      screen.queryByRole("button", { name: "Savings-Only (no compounding)" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Savings-Only (no compounding)" }),
+    ).toBeInTheDocument();
+
+    // and back on again, which the old disappearing legend made impossible
+    await user.click(seriesToggle("savings"));
+    expectSeriesOn("savings");
   });
 
   it("highlights the matching growth-table values when a summary value is hovered", async () => {
@@ -574,7 +580,7 @@ describe("growth table chart navigation", () => {
     const user = userEvent.setup();
     render(<CompoundingTool />);
 
-    await user.click(screen.getByRole("button", { name: "Savings" }));
+    await user.click(seriesToggle("savings"));
 
     expect(screen.getByTestId("growth-heading")).toHaveTextContent(
       "Growth Over Time",
@@ -590,7 +596,7 @@ describe("growth table chart navigation", () => {
     render(<CompoundingTool />);
 
     await user.click(
-      screen.getByRole("button", { name: "Compounding+Yearly Inv." }),
+      seriesToggle("blue"),
     );
 
     const expectedMilestones = [
@@ -620,7 +626,7 @@ describe("growth table chart navigation", () => {
     const user = userEvent.setup();
     render(<CompoundingTool />);
     await user.click(
-      screen.getByRole("button", { name: "Compounding+Yearly Inv." }),
+      seriesToggle("blue"),
     );
     const contributionInputs = screen.getAllByRole("spinbutton").slice(-5);
 
@@ -696,7 +702,7 @@ describe("growth table chart navigation", () => {
     const user = userEvent.setup();
     render(<CompoundingTool />);
 
-    await user.click(screen.getByRole("button", { name: "Compounding" }));
+    await user.click(seriesToggle("compounding"));
 
     const expectedMoney = Math.round(
       calculateExpectedValues(35).compoundedOnly,
@@ -1010,21 +1016,17 @@ describe("money explainer", () => {
       screen.getByRole("dialog", { name: "What is money?" }),
     ).toBeInTheDocument();
 
-    const savingsButton = screen.getByRole("button", { name: "Savings" });
-    const compoundingButton = screen.getByRole("button", {
-      name: "Compounding",
-    });
-    const yearlyInvestmentsButton = screen.getByRole("button", {
-      name: "Compounding+Yearly Inv.",
-    });
+    const savingsButton = seriesToggle("savings");
+    const compoundingButton = seriesToggle("compounding");
+    const yearlyInvestmentsButton = seriesToggle("blue");
 
     fireEvent.keyDown(window, { key: "1" });
     fireEvent.keyDown(window, { key: "2" });
     fireEvent.keyDown(window, { key: "3" });
 
-    expect(savingsButton).not.toHaveClass("bg-pink-100");
-    expect(compoundingButton).toHaveClass("bg-gray-200");
-    expect(yearlyInvestmentsButton).toHaveClass("bg-blue-100");
+    expect(savingsButton).toHaveAttribute("aria-pressed", "false");
+    expect(compoundingButton).toHaveAttribute("aria-pressed", "true");
+    expect(yearlyInvestmentsButton).toHaveAttribute("aria-pressed", "true");
     expect(
       screen.getByRole("dialog", { name: "What is money?" }),
     ).toBeInTheDocument();

@@ -1037,36 +1037,52 @@ export default function CompoundingTool() {
       ];
 
   const renderCustomLegend = () => {
+    // The legend IS the control. Every entry always renders, on or off, so a
+    // curve you switched off can be switched back on from the same place. The
+    // old Savings / Compounding / Compounding+Yearly buttons under the decade
+    // inputs did this job and were removed as duplicates.
     const items = [
       {
         key: "pink",
         color: PINK,
         label: `Savings-Only (no compounding)`,
-        always: showSavings,
+        active: showSavings,
+        toggle: () => setShowSavings((prev) => !prev),
+        tour: "btn-savings",
       },
       {
         key: "black",
         color: BLACK,
         label: `$${initialInvestment.toLocaleString()} + Interest Only`,
-        always: showBlack,
+        active: showBlack,
+        toggle: () => setShowBlack((prev) => !prev),
+        tour: "btn-compounding",
       },
       {
         key: "blue",
         color: BLUE,
         label: `$${initialInvestment.toLocaleString()}+ Yearly Investments`,
-        always: showBlue,
+        active: showBlue,
+        toggle: () => setShowBlue((prev) => !prev),
+        tour: "btn-blue",
       },
-    ].filter((i) => i.always);
+    ];
 
     return (
       <div className="flex flex-wrap items-center justify-center gap-4 mb-2">
         {items.map((item) => (
           <button
             key={item.key}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-100 hover:bg-gray-100"
+            data-tour={item.tour}
+            aria-pressed={item.active}
+            onClick={item.toggle}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-100 hover:bg-gray-100 ${
+              item.active ? "" : "opacity-45"
+            }`}
             onMouseEnter={(e) => {
-              setHoveredLegend(item.key);
-              if (chartSectionRef.current) {
+              // only highlight a curve that is actually drawn
+              if (item.active) setHoveredLegend(item.key);
+              if (item.active && chartSectionRef.current) {
                 const sectionRect = chartSectionRef.current.getBoundingClientRect();
                 const btnRect = e.currentTarget.getBoundingClientRect();
                 setTooltipPos({
@@ -1079,12 +1095,18 @@ export default function CompoundingTool() {
               setHoveredLegend(null);
               setTooltipPos(null);
             }}
-            onFocus={() => setHoveredLegend(item.key)}
+            onFocus={() => {
+              if (item.active) setHoveredLegend(item.key);
+            }}
             onBlur={() => setHoveredLegend(null)}
           >
+            {/* hollow dot when the curve is switched off, filled when it is on */}
             <span
-              className="inline-block w-3 h-3 rounded-full"
-              style={{ backgroundColor: item.color }}
+              className="inline-block w-3 h-3 rounded-full border-2"
+              style={{
+                backgroundColor: item.active ? item.color : "transparent",
+                borderColor: item.color,
+              }}
             />
             <span className="text-sm font-medium text-gray-600">{item.label}</span>
           </button>
@@ -1635,27 +1657,9 @@ export default function CompoundingTool() {
                   >
                     Reset
                   </button>
-                  <button
-                    data-tour="btn-savings"
-                    onClick={() => setShowSavings((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal ${showSavings ? "bg-pink-100 text-pink-500" : "text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"}`}
-                  >
-                    Savings
-                  </button>
-                  <button
-                    data-tour="btn-compounding"
-                    onClick={() => setShowBlack((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal ${showBlack ? "bg-gray-200 text-gray-800" : "text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"}`}
-                  >
-                    Compounding
-                  </button>
-                  <button
-                    data-tour="btn-blue"
-                    onClick={() => setShowBlue((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal ${showBlue ? "bg-blue-100 text-blue-600" : "text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"}`}
-                  >
-                    Compounding+Yearly Inv.
-                  </button>
+                  {/* The Savings / Compounding / Compounding+Yearly buttons that
+                      used to sit here were duplicates of the chart legend. The
+                      legend now carries the toggles; see renderCustomLegend. */}
                 </div>
               </div>
 
