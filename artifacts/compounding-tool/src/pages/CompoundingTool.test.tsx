@@ -232,17 +232,17 @@ describe("growth table chart navigation", () => {
     const legendCurves = [
       {
         key: "pink",
-        name: "Savings-Only (no compounding)",
+        name: "Savings",
         originalStroke: "#f472b6",
       },
       {
         key: "black",
-        name: "$1,000 + Interest Only",
+        name: "Compounding",
         originalStroke: "#374151",
       },
       {
         key: "blue",
-        name: "$1,000+ Yearly Investments",
+        name: "Compounding + Investments",
         originalStroke: "#3b82f6",
       },
     ];
@@ -472,13 +472,13 @@ describe("growth table chart navigation", () => {
     // All three stay mounted whatever their state - a curve you switch off has
     // to remain switchable back on from the same control.
     expect(
-      screen.getByRole("button", { name: "Savings-Only (no compounding)" }),
+      screen.getByRole("button", { name: "Savings" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "$1,000 + Interest Only" }),
+      screen.getByRole("button", { name: "Compounding" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "$1,000+ Yearly Investments" }),
+      screen.getByRole("button", { name: "Compounding + Investments" }),
     ).toBeInTheDocument();
 
     expectSeriesOn("savings");
@@ -495,7 +495,7 @@ describe("growth table chart navigation", () => {
     await user.click(seriesToggle("savings"));
     expectSeriesOff("savings");
     expect(
-      screen.getByRole("button", { name: "Savings-Only (no compounding)" }),
+      screen.getByRole("button", { name: "Savings" }),
     ).toBeInTheDocument();
 
     // and back on again, which the old disappearing legend made impossible
@@ -882,7 +882,7 @@ describe("money explainer", () => {
         });
         expect(dialog).toHaveTextContent("Scroll to change");
         expect(
-          screen.getByRole("button", { name: "$1,000 + Interest Only" }),
+          screen.getByRole("button", { name: "Compounding" }),
         ).toBeInTheDocument();
         expect(screen.getByTestId("chart-curve-area")).toContainElement(
           document.querySelector(".curve-black"),
@@ -918,7 +918,7 @@ describe("money explainer", () => {
         expect(dialog).toHaveTextContent("Scroll to change");
         expect(
           screen.getByRole("button", {
-            name: "$1,000+ Yearly Investments",
+            name: "Compounding + Investments",
           }),
         ).toBeInTheDocument();
         expect(screen.getByTestId("chart-curve-area")).toContainElement(

@@ -940,6 +940,54 @@ export default function CompoundingTool() {
     ? Math.round(((activeSummaryValue - pinkAtDisplay) / pinkAtDisplay) * 100)
     : null;
 
+  // One stat card per curve. The "active" one keeps the test ids and the tour
+  // target that the single swapping card used to carry: blue wins, then black,
+  // then pink - the same order activeSummaryValue uses.
+  const activeSummaryKey = showBlue ? "blue" : showBlack ? "black" : "pink";
+  const percentVsSavings = (value: number) =>
+    pinkAtDisplay > 0 ? Math.round(((value - pinkAtDisplay) / pinkAtDisplay) * 100) : null;
+  const summaryCards = [
+    {
+      key: "pink" as const,
+      label: "your savings",
+      value: pinkAtDisplay,
+      percent: null as number | null,
+      on: showSavings,
+      colors: {
+        background: "bg-pink-50",
+        label: "text-pink-600",
+        value: "text-pink-700",
+        detail: "text-pink-500",
+      },
+    },
+    {
+      key: "black" as const,
+      label: <>your $ from<br />compounding only</>,
+      value: blackData[displayIdx],
+      percent: percentVsSavings(blackData[displayIdx]),
+      on: showBlack,
+      colors: {
+        background: "bg-gray-100",
+        label: "text-gray-600",
+        value: "text-gray-700",
+        detail: "text-gray-500",
+      },
+    },
+    {
+      key: "blue" as const,
+      label: <>your $ from<br />compounding+yearly investments</>,
+      value: blueData[displayIdx],
+      percent: percentVsSavings(blueData[displayIdx]),
+      on: showBlue,
+      colors: {
+        background: "bg-blue-50",
+        label: "text-blue-600",
+        value: "text-blue-700",
+        detail: "text-blue-500",
+      },
+    },
+  ].map((card) => ({ ...card, isActive: card.key === activeSummaryKey }));
+
   const dataMax = Math.max(
     ...(showBlue ? blueData : [0]),
     ...(showBlack ? blackData : [0]),
@@ -1036,6 +1084,13 @@ export default function CompoundingTool() {
         { key: "50s", label: "Ages 50–59", step: 100 },
       ];
 
+  // The old legend labels now head the hover tooltips instead of the buttons.
+  const legendTooltipTitles: Record<string, string> = {
+    pink: "Savings-Only (no compounding)",
+    black: `$${initialInvestment.toLocaleString()} + Interest Only`,
+    blue: `$${initialInvestment.toLocaleString()}+ Yearly Investments`,
+  };
+
   const renderCustomLegend = () => {
     // The legend IS the control. Every entry always renders, on or off, so a
     // curve you switched off can be switched back on from the same place. The
@@ -1045,7 +1100,7 @@ export default function CompoundingTool() {
       {
         key: "pink",
         color: PINK,
-        label: `Savings-Only (no compounding)`,
+        label: "Savings",
         active: showSavings,
         toggle: () => setShowSavings((prev) => !prev),
         tour: "btn-savings",
@@ -1053,7 +1108,7 @@ export default function CompoundingTool() {
       {
         key: "black",
         color: BLACK,
-        label: `$${initialInvestment.toLocaleString()} + Interest Only`,
+        label: "Compounding",
         active: showBlack,
         toggle: () => setShowBlack((prev) => !prev),
         tour: "btn-compounding",
@@ -1061,7 +1116,7 @@ export default function CompoundingTool() {
       {
         key: "blue",
         color: BLUE,
-        label: `$${initialInvestment.toLocaleString()}+ Yearly Investments`,
+        label: "Compounding + Investments",
         active: showBlue,
         toggle: () => setShowBlue((prev) => !prev),
         tour: "btn-blue",
@@ -1111,6 +1166,112 @@ export default function CompoundingTool() {
             <span className="text-sm font-medium text-gray-600">{item.label}</span>
           </button>
         ))}
+        {/* Deltas moved up here from the stats card, right of Reset. */}
+        {(() => {
+          const idx = hoveredDataIndex;
+          const ageLabel = timelineLabel(idx);
+          const blueVal = blueData[idx];
+          const blackVal = blackData[idx];
+          const pinkVal = pinkData[idx];
+          const diffBlackPink = blackVal - pinkVal;
+          const diffBlueBlack = blueVal - blackVal;
+          return (
+        <div className="relative flex items-center gap-4">
+          <div>
+            <div data-tour="delta1" data-testid="delta1" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
+              <span className="text-[13px] text-gray-400">△</span>
+              <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
+              <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
+              {diffBlackPink !== 0 && (
+                <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlackPink / 100) * 100).toLocaleString()}</span>
+              )}
+              <div className={`pointer-events-none absolute left-0 top-full z-50 -translate-y-1 pt-2 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 ${forcedDelta === "blackPink" ? "opacity-100" : "opacity-0"}`}>
+                <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
+                  <p className="max-w-[205px]">
+                    At {ageLabel}, the delta/difference between Compounding Only and Savings Only is:
+                  </p>
+                  <div className="mt-4 ml-auto w-fit min-w-[124px]">
+                    <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
+                      <span
+                        data-testid="difference-black-value"
+                        className="text-sm font-semibold"
+                        style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
+                        {...valueHoverHandlers("black")}
+                      >
+                        {formatCurveMoney(blackVal)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-end gap-1.5 whitespace-nowrap">
+                      <span className="text-gray-400">−</span>
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
+                      <span
+                        data-testid="difference-pink-value"
+                        className="text-sm font-semibold"
+                        style={{ color: PINK, backgroundColor: hoveredValueSeries === "pink" ? VALUE_HIGHLIGHT : undefined }}
+                        {...valueHoverHandlers("pink")}
+                      >
+                        {formatCurveMoney(pinkVal)}
+                      </span>
+                    </div>
+                    <div className="my-2 border-t border-gray-300" />
+                    <div className="text-right text-base font-semibold text-emerald-500">
+                      {diffBlackPink < 0 && "−"}{formatCurveDeltaMoney(diffBlackPink)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div data-tour="delta2" data-testid="delta2" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
+              <span className="text-[13px] text-gray-400">△</span>
+              <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
+              <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
+              {diffBlueBlack !== 0 && (
+                <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlueBlack / 100) * 100).toLocaleString()}</span>
+              )}
+              <div className={`pointer-events-none absolute left-1/2 top-full z-50 -translate-x-1/2 -translate-y-1 pt-2 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 ${forcedDelta === "blueBlack" ? "opacity-100" : "opacity-0"}`}>
+                <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
+                  <p className="max-w-[205px]">
+                    At {ageLabel}, the delta/difference between Compounding + Yearly Inv. and Compounding Only is:
+                  </p>
+                  <div className="mt-4 ml-auto w-fit min-w-[124px]">
+                    <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
+                      <span
+                        data-testid="difference-blue-value"
+                        className="text-sm font-semibold"
+                        style={{ color: BLUE, backgroundColor: hoveredValueSeries === "blue" ? VALUE_HIGHLIGHT : undefined }}
+                        {...valueHoverHandlers("blue")}
+                      >
+                        {formatCurveMoney(blueVal)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-end gap-1.5 whitespace-nowrap">
+                      <span className="text-gray-400">−</span>
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
+                      <span
+                        data-testid="difference-black-value"
+                        className="text-sm font-semibold"
+                        style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
+                        {...valueHoverHandlers("black")}
+                      >
+                        {formatCurveMoney(blackVal)}
+                      </span>
+                    </div>
+                    <div className="my-2 border-t border-gray-300" />
+                    <div className="text-right text-base font-semibold text-emerald-500">
+                      {diffBlueBlack < 0 && "−"}{formatCurveDeltaMoney(diffBlueBlack)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+          );
+        })()}
       </div>
     );
   };
@@ -1219,6 +1380,9 @@ export default function CompoundingTool() {
                     top: tooltipPos.top,
                   }}
                 >
+                  <p className="mb-1 font-semibold text-gray-900">
+                    {legendTooltipTitles[hoveredLegend]}
+                  </p>
                   {hoveredLegend === "pink"
                     ? "The pink line is pure linear savings—no compounding, just adding your yearly contributions to your principal. Good, but nowhere near the power of compound interest."
                     : EXPLANATIONS[hoveredLegend]}
@@ -1242,8 +1406,8 @@ export default function CompoundingTool() {
                 const blackVal: number = row.black as number;
                 const pinkVal: number = row.pink as number;
                 const label = timelineLabel(idx);
-                const tooltipWidth = 170;
-                const tooltipEstHeight = 120;
+                const tooltipWidth = 290;
+                const tooltipEstHeight = 182;
                 const gap = 20;
                 let left: number;
                 let top: number;
@@ -1286,17 +1450,25 @@ export default function CompoundingTool() {
                  );
                 return (
                   <div
-                    className="absolute z-20 pointer-events-auto bg-white/95 backdrop-blur border border-gray-200 rounded-xl shadow-xl p-4"
+                    data-tour="modes"
+                    // pointer-events-none lets a hover/drag pass straight through the box to the
+                    // chart underneath. Only the three value spans take the mouse back, and
+                    // only when a drag is not in progress.
+                    className="absolute z-20 pointer-events-none bg-white/95 backdrop-blur border border-gray-200 rounded-xl shadow-xl p-5"
                     style={{ left, top, minWidth: tooltipWidth }}
                   >
-                    <p data-testid="chart-tooltip-age" className="text-xs font-semibold text-gray-500 mb-2">
+                    <p data-testid="chart-tooltip-age" className="text-sm font-semibold text-gray-500 mb-3">
                       {label}
                     </p>
                     {showBlue && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
+                      <div className="flex items-center justify-between gap-4 mb-1">
+                        <span className="flex items-center gap-2">
+                          <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">Compounding + Inv.</span>
+                        </span>
                         <span
-                          className="font-bold text-sm"
+                          data-testid="summary-compounding-yearly-value"
+                          className={`font-bold text-lg ${isScrubbing ? "" : "pointer-events-auto"}`}
                           style={{ color: BLUE, backgroundColor: hoveredValueSeries === "blue" ? VALUE_HIGHLIGHT : undefined }}
                           {...valueHoverHandlers("blue")}
                         >
@@ -1305,10 +1477,14 @@ export default function CompoundingTool() {
                       </div>
                     )}
                     {showBlack && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                      <div className="flex items-center justify-between gap-4 mb-1">
+                        <span className="flex items-center gap-2">
+                          <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK }} />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">Compounding Only</span>
+                        </span>
                         <span
-                          className="font-bold text-sm"
+                          data-testid="summary-compounding-value"
+                          className={`font-bold text-lg ${isScrubbing ? "" : "pointer-events-auto"}`}
                           style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
                           {...valueHoverHandlers("black")}
                         >
@@ -1317,10 +1493,14 @@ export default function CompoundingTool() {
                       </div>
                     )}
                     {showSavings && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
+                      <div className="flex items-center justify-between gap-4 mb-1">
+                        <span className="flex items-center gap-2">
+                          <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">Savings Only</span>
+                        </span>
                         <span
-                          className="font-bold text-sm"
+                          data-testid="summary-savings-value"
+                          className={`font-bold text-lg ${isScrubbing ? "" : "pointer-events-auto"}`}
                           style={{ color: PINK, backgroundColor: hoveredValueSeries === "pink" ? VALUE_HIGHLIGHT : undefined }}
                           {...valueHoverHandlers("pink")}
                         >
@@ -1634,9 +1814,17 @@ export default function CompoundingTool() {
 
               {/* Left: Decade inputs + action buttons */}
               <div data-tour="inputs" className="w-full lg:w-2/5" onDoubleClick={(e) => e.stopPropagation()}>
-                <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">
-                  Yearly Investments by {isYearMode ? "Year" : "Age"}
-                </h2>
+                <div className="mb-3 flex items-baseline gap-3">
+                  <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                    Yearly Investments by {isYearMode ? "Year" : "Age"}
+                  </h2>
+                  <button
+                    onClick={handleReset}
+                    className="text-xs font-normal text-gray-400 hover:text-black hover:underline"
+                  >
+                    Reset
+                  </button>
+                </div>
                 <div className="grid grid-cols-5 gap-1.5">
                   {decadeConfigs.map(({ key, label, step }, index) => (
                     <DecadeInput
@@ -1650,210 +1838,50 @@ export default function CompoundingTool() {
                     />
                   ))}
                 </div>
-                <div className="mt-3 flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={handleReset}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600"
-                  >
-                    Reset
-                  </button>
-                  {/* The Savings / Compounding / Compounding+Yearly buttons that
-                      used to sit here were duplicates of the chart legend. The
-                      legend now carries the toggles; see renderCustomLegend. */}
-                </div>
+                {/* Total Added - plain text under the decade inputs it sums up. Reset sits beside the heading above; the old
+                    Savings / Compounding / Compounding+Yearly buttons that used
+                    to live here were duplicates of the chart legend. */}
+                <p data-tour="green" className="mt-3 text-xs text-gray-600 leading-snug">
+                  <span className="text-base font-bold text-gray-800">
+                    ${totalContributions.toLocaleString()}
+                  </span>{" "}
+                  is what you invested across your entire life
+                </p>
               </div>
 
-              {/* Right: Stats cards */}
-              <div className="w-full lg:w-3/5 flex flex-col sm:flex-row gap-3 items-stretch">
-                {/* Green - Total Added */}
-                <div data-tour="green" className="flex-1 bg-green-50 rounded-2xl py-2 px-4 text-center flex flex-col justify-center">
-                  <p className="text-base font-bold text-green-700 mb-1">
-                    ${totalContributions.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-green-600 leading-snug">
-                    is what you invested<br />across your entire life
-                  </p>
-                </div>
-
-                {/* Active mode - Return at age */}
-                <div data-tour="valuecard" className={`flex-1 ${summaryColors.background} rounded-2xl py-2 px-4 text-center flex flex-col justify-center`}>
-                  <p data-testid="chart-facing-age" className={`text-xs ${summaryColors.label} mb-0.5 leading-snug`}>
-                    {timelineLabel(displayIdx)}{showBlue || showBlack ? ":" : ""} {activeSummaryLabel} is
-                  </p>
-                  <p data-testid="summary-return-percentage" className={`text-base font-bold ${summaryColors.value}`}>
-                    {percentDifference !== null
-                      ? `${Math.abs(percentDifference).toLocaleString()}%`
-                        : isSavingsOnly
-                          ? `$${Math.round(activeSummaryValue).toLocaleString()}`
-                          : formatMoney(Math.round(activeSummaryValue / 100) * 100)}
-                  </p>
-                  {percentDifference !== null && (
-                    <p className={`text-xs ${summaryColors.detail} mt-0.5 leading-snug`}>
-                      {percentDifference < 0 ? "less" : "larger"} than savings alone
+              {/* Right: one card per curve, side by side, so the gray and blue
+                  readings are visible at the same time as pink instead of
+                  taking turns in a single card. A card whose curve is switched
+                  off dims, the same idiom the legend uses. */}
+              <div className="w-full lg:w-3/5 grid grid-cols-3 gap-3 items-stretch">
+                {summaryCards.map((card) => (
+                  <div
+                    key={card.key}
+                    data-tour={card.isActive ? "valuecard" : undefined}
+                    className={`${card.colors.background} rounded-2xl py-2 px-4 text-center flex flex-col justify-center ${card.on ? "" : "opacity-45"}`}
+                  >
+                    <p
+                      data-testid={card.isActive ? "chart-facing-age" : undefined}
+                      className={`text-xs ${card.colors.label} mb-0.5 leading-snug`}
+                    >
+                      {timelineLabel(displayIdx)}{card.key === "pink" ? "" : ":"} {card.label} is
                     </p>
-                  )}
-                </div>
+                    <p
+                      data-testid={card.isActive ? "summary-return-percentage" : undefined}
+                      className={`text-base font-bold ${card.colors.value}`}
+                    >
+                      {card.percent !== null
+                        ? `${Math.abs(card.percent).toLocaleString()}%`
+                        : `$${Math.round(card.value).toLocaleString()}`}
+                    </p>
+                    {card.percent !== null && (
+                      <p className={`text-xs ${card.colors.detail} mt-0.5 leading-snug`}>
+                        {card.percent < 0 ? "less" : "larger"} than savings alone
+                      </p>
+                    )}
+                  </div>
+                ))}
 
-                {/* Gray - Live hover data broken into 3 sub-columns */}
-                {(() => {
-                  const idx = hoveredDataIndex ?? YEARS;
-                  const ageLabel = timelineLabel(idx);
-                  const blueVal = blueData[idx];
-                  const blackVal = blackData[idx];
-                  const pinkVal = pinkData[idx];
-                  const diffBlackPink = blackVal - pinkVal;
-                  const diffBlueBlack = blueVal - blackVal;
-                  return (
-                    <div data-tour="modes" className="flex-[2] bg-white border border-gray-100 rounded-2xl py-2 px-3 flex flex-col gap-1.5">
-                      <div className="grid grid-cols-3 gap-2">
-                        {/* Col 1 - Savings Only (pink) */}
-                        <div className="flex flex-col gap-1">
-                          <p className="text-[13px] text-gray-500 leading-snug">Savings<br />Only</p>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
-                            <span
-                              data-testid="summary-savings-value"
-                              className="text-lg font-bold"
-                              style={{ color: PINK, backgroundColor: hoveredValueSeries === "pink" ? VALUE_HIGHLIGHT : undefined }}
-                              {...valueHoverHandlers("pink")}
-                            >
-                              {formatCurveMoney(pinkVal)}
-                            </span>
-                          </div>
-                        </div>
-                        {/* Col 2 - Compounding Only (black) */}
-                        <div className="flex flex-col gap-1">
-                          <p className="text-[13px] text-gray-500 leading-snug">Compounding<br />Only</p>
-                          {showBlack && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
-                              <span
-                                data-testid="summary-compounding-value"
-                                className="text-lg font-bold text-gray-800"
-                                style={{ backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
-                                {...valueHoverHandlers("black")}
-                              >
-                                {formatCurveMoney(blackVal)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        {/* Col 3 - Compounding + Yearly (blue) */}
-                        <div className="flex flex-col gap-1">
-                          <p className="text-[13px] text-gray-500 leading-snug"><span className="whitespace-nowrap">Compounding +</span><br />Yearly Inv.</p>
-                          {showBlue && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
-                              <span
-                                data-testid="summary-compounding-yearly-value"
-                                className="text-lg font-bold"
-                                style={{ color: BLUE, backgroundColor: hoveredValueSeries === "blue" ? VALUE_HIGHLIGHT : undefined }}
-                                {...valueHoverHandlers("blue")}
-                              >
-                                {formatCurveMoney(blueVal)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {/* Bottom row - delta diff lines (always visible) */}
-                      <div className="relative flex w-full gap-4">
-                        <div className="flex-1">
-                          <div data-tour="delta1" data-testid="delta1" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
-                            <span className="text-[13px] text-gray-400">△</span>
-                            <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
-                            <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
-                            {diffBlackPink !== 0 && (
-                              <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlackPink / 100) * 100).toLocaleString()}</span>
-                            )}
-                            <div className={`pointer-events-none absolute left-0 top-full z-50 -translate-y-1 pt-2 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 ${forcedDelta === "blackPink" ? "opacity-100" : "opacity-0"}`}>
-                              <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
-                                <p className="max-w-[205px]">
-                                  At {ageLabel}, the delta/difference between Compounding Only and Savings Only is:
-                                </p>
-                                <div className="mt-4 ml-auto w-fit min-w-[124px]">
-                                  <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
-                                    <span
-                                      data-testid="difference-black-value"
-                                      className="text-sm font-semibold"
-                                      style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
-                                      {...valueHoverHandlers("black")}
-                                    >
-                                      {formatCurveMoney(blackVal)}
-                                    </span>
-                                  </div>
-                                  <div className="mt-1 flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                    <span className="text-gray-400">−</span>
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PINK }} />
-                                    <span
-                                      data-testid="difference-pink-value"
-                                      className="text-sm font-semibold"
-                                      style={{ color: PINK, backgroundColor: hoveredValueSeries === "pink" ? VALUE_HIGHLIGHT : undefined }}
-                                      {...valueHoverHandlers("pink")}
-                                    >
-                                      {formatCurveMoney(pinkVal)}
-                                    </span>
-                                  </div>
-                                  <div className="my-2 border-t border-gray-300" />
-                                  <div className="text-right text-base font-semibold text-emerald-500">
-                                    {diffBlackPink < 0 && "−"}{formatCurveDeltaMoney(diffBlackPink)}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <div data-tour="delta2" data-testid="delta2" className="relative group inline-flex items-center gap-1 cursor-default p-2 -m-2">
-                            <span className="text-[13px] text-gray-400">△</span>
-                            <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
-                            <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
-                            {diffBlueBlack !== 0 && (
-                              <span className="text-[13px] text-gray-700">-${Math.abs(Math.round(diffBlueBlack / 100) * 100).toLocaleString()}</span>
-                            )}
-                            <div className={`pointer-events-none absolute left-1/2 top-full z-50 -translate-x-1/2 -translate-y-1 pt-2 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 ${forcedDelta === "blueBlack" ? "opacity-100" : "opacity-0"}`}>
-                              <div className="w-64 rounded-md border border-gray-200 bg-white p-6 text-[13px] leading-[1.35] text-gray-700 shadow-xl">
-                                <p className="max-w-[205px]">
-                                  At {ageLabel}, the delta/difference between Compounding + Yearly Inv. and Compounding Only is:
-                                </p>
-                                <div className="mt-4 ml-auto w-fit min-w-[124px]">
-                                  <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLUE }} />
-                                    <span
-                                      data-testid="difference-blue-value"
-                                      className="text-sm font-semibold"
-                                      style={{ color: BLUE, backgroundColor: hoveredValueSeries === "blue" ? VALUE_HIGHLIGHT : undefined }}
-                                      {...valueHoverHandlers("blue")}
-                                    >
-                                      {formatCurveMoney(blueVal)}
-                                    </span>
-                                  </div>
-                                  <div className="mt-1 flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                    <span className="text-gray-400">−</span>
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: BLACK_DOT }} />
-                                    <span
-                                      data-testid="difference-black-value"
-                                      className="text-sm font-semibold"
-                                      style={{ color: BLACK, backgroundColor: hoveredValueSeries === "black" ? VALUE_HIGHLIGHT : undefined }}
-                                      {...valueHoverHandlers("black")}
-                                    >
-                                      {formatCurveMoney(blackVal)}
-                                    </span>
-                                  </div>
-                                  <div className="my-2 border-t border-gray-300" />
-                                  <div className="text-right text-base font-semibold text-emerald-500">
-                                    {diffBlueBlack < 0 && "−"}{formatCurveDeltaMoney(diffBlueBlack)}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             </div>
           </div>

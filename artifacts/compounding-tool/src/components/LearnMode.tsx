@@ -136,8 +136,8 @@ const STEPS: LearnStep[] = [
   {
     target: "modes",
     title: "Three Ways to Grow Money",
-    body: "This box shows all three side-by-side at the age you have selected. Pink is plain savings, black is compounding on its own, and blue is compounding plus what you add each year.",
-    yearBody: "This box shows all three side-by-side at the year you have selected. Pink is plain savings, black is compounding on its own, and blue is compounding plus what you add each year.",
+    body: "This box on the chart shows all three side-by-side at the age you have selected. Pink is plain savings, black is compounding on its own, and blue is compounding plus what you add each year.",
+    yearBody: "This box on the chart shows all three side-by-side at the year you have selected. Pink is plain savings, black is compounding on its own, and blue is compounding plus what you add each year.",
     place: "above",
     nudge: { y: -15 },
   },
