@@ -56,7 +56,6 @@ function expectSynchronizedChartState(age: number) {
   expect(activeRows).toHaveLength(1);
   expect(activeRows[0]).toHaveAttribute("data-age", String(age));
   expect(screen.getByTestId("chart-tooltip-age")).toHaveTextContent(`Age ${age}`);
-  expect(screen.getByTestId("chart-facing-age")).toHaveTextContent(`Age ${age}`);
   expect(screen.getByTestId("summary-return-percentage")).toHaveTextContent(
     `${percentLargerThanSavings.toLocaleString()}%`,
   );
@@ -209,18 +208,16 @@ describe("growth table chart navigation", () => {
 
     fireEvent.keyDown(window, { key: "h" });
 
-    expect(screen.getByTestId("growth-heading").closest(".side-by-side-right")).toHaveClass(
-      "hidden",
-    );
+    // The headings stay put; only the bars and the lesson list go away.
+    expect(screen.getByTestId("growth-heading")).toBeInTheDocument();
+    expect(screen.queryByTestId("growth-money-10")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Money is a way to store and trade value."),
     ).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "H" });
 
-    expect(screen.getByTestId("growth-heading").closest(".side-by-side-right")).not.toHaveClass(
-      "hidden",
-    );
+    expect(screen.getByTestId("growth-heading")).toBeInTheDocument();
     expect(screen.getByTestId("growth-money-10")).toBeInTheDocument();
     expect(screen.getByText("Money is a way to store and trade value.")).toBeInTheDocument();
   });
@@ -291,7 +288,13 @@ describe("growth table chart navigation", () => {
     expect(screen.getByTestId("summary-interest-25")).toBeInTheDocument();
     expect(screen.queryByTestId("summary-interest-20")).not.toBeInTheDocument();
 
-    await user.hover(axisToggle);
+    // The chart re-renders once on mount, right after it reports its pixel
+    // scales. Let that settle, then re-query: the node captured above is not
+    // the live one any more.
+    await waitFor(() =>
+      expect(screen.getByTestId("x-axis-mode-toggle")).toBeInTheDocument(),
+    );
+    await user.hover(screen.getByTestId("x-axis-mode-toggle"));
     const activeAxisLabel = screen
       .getByTestId("x-axis-mode-toggle")
       .querySelector("text");
@@ -316,9 +319,6 @@ describe("growth table chart navigation", () => {
     expect(screen.getByTestId("x-axis-tick-1")).toHaveTextContent("1");
     expect(screen.getByTestId("x-axis-tick-50")).toHaveTextContent("50");
     expect(screen.getByTestId("chart-tooltip-age")).toHaveTextContent(
-      "Year 0",
-    );
-    expect(screen.getByTestId("chart-facing-age")).toHaveTextContent(
       "Year 0",
     );
     expect(screen.getByText("Yearly Investments by Year")).toBeInTheDocument();
@@ -655,7 +655,6 @@ describe("growth table chart navigation", () => {
     await user.click(screen.getByTestId("summary-money-25"));
 
     expect(screen.getByTestId("chart-tooltip-age")).toHaveTextContent("Age 35");
-    expect(screen.getByTestId("chart-facing-age")).toHaveTextContent("Age 35");
     const activeRows = screen
       .getAllByTestId("growth-row")
       .filter((row) => row.getAttribute("data-active") === "true");
@@ -902,12 +901,12 @@ describe("money explainer", () => {
         expect(dialog).not.toHaveTextContent("left and right arrow keys");
       });
 
-      expect(screen.getByTestId("chart-facing-age")).toHaveTextContent("Age 10");
+      expect(screen.getByTestId("chart-tooltip-age")).toHaveTextContent("Age 10");
       await user.keyboard("{ArrowUp}");
-      expect(screen.getByTestId("chart-facing-age")).toHaveTextContent("Age 11");
+      expect(screen.getByTestId("chart-tooltip-age")).toHaveTextContent("Age 11");
 
       await user.keyboard("{ArrowDown}");
-      expect(screen.getByTestId("chart-facing-age")).toHaveTextContent("Age 10");
+      expect(screen.getByTestId("chart-tooltip-age")).toHaveTextContent("Age 10");
 
       await user.keyboard("{ArrowRight}");
 

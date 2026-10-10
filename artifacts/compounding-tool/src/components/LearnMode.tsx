@@ -40,7 +40,7 @@ export interface LearnStep {
   yearBody?: string;
   stage?: LearnStageState;
   /** where the callout sits relative to the target */
-  place?: "below" | "above" | "insideBottomRight";
+  place?: "below" | "above" | "left" | "insideBottomRight";
   /** fine tuning, in pixels, applied after placement */
   nudge?: { x?: number; y?: number };
   /** extra data-tour targets to outline alongside the main one */
@@ -101,7 +101,7 @@ const STEPS: LearnStep[] = [
   {
     target: "green",
     title: "Your Lifetime Investments",
-    body: "The green box adds up every dollar you invest across your whole life. It stays small compared to what that same money could become through compounding.",
+    body: "This line adds up every dollar you invest across your whole life. It stays small compared to what that same money could become through compounding.",
     place: "above",
     nudge: { y: -15 },
   },
@@ -138,8 +138,7 @@ const STEPS: LearnStep[] = [
     title: "Three Ways to Grow Money",
     body: "This box on the chart shows all three side-by-side at the age you have selected. Pink is plain savings, black is compounding on its own, and blue is compounding plus what you add each year.",
     yearBody: "This box on the chart shows all three side-by-side at the year you have selected. Pink is plain savings, black is compounding on its own, and blue is compounding plus what you add each year.",
-    place: "above",
-    nudge: { y: -15 },
+    place: "left",
   },
   {
     target: "delta1",
@@ -356,6 +355,18 @@ export function LearnMode({
         return;
       }
 
+      if (place === "left") {
+        // beside the target, not over it, vertically centred on it
+        setCallout({
+          x: Math.max(
+            CALLOUT_GAP,
+            rect.left - CALLOUT_WIDTH - CALLOUT_GAP + nudgeX,
+          ),
+          y: clampY(rect.top + rect.height / 2 - height / 2),
+        });
+        return;
+      }
+
       setCallout({ x: clampX(rect.left), y: clampY(rect.bottom + CALLOUT_GAP) });
     },
     []
@@ -403,6 +414,19 @@ export function LearnMode({
           height -
           CALLOUT_GAP +
           (current.nudge?.y ?? 0)
+      );
+      if (Math.abs(wanted - callout.y) > 1) {
+        setCallout((prev) => (prev ? { ...prev, y: wanted } : prev));
+      }
+    }
+    if (current.place === "left") {
+      const rect = el.getBoundingClientRect();
+      const wanted = Math.max(
+        CALLOUT_GAP,
+        Math.min(
+          window.innerHeight - height - CALLOUT_GAP,
+          rect.top + rect.height / 2 - height / 2 + (current.nudge?.y ?? 0)
+        )
       );
       if (Math.abs(wanted - callout.y) > 1) {
         setCallout((prev) => (prev ? { ...prev, y: wanted } : prev));

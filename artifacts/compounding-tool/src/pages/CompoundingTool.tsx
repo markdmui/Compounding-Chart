@@ -499,8 +499,8 @@ export default function CompoundingTool() {
   const learnBlocksKeys = learnOpen && !learnShortcuts;
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [forcedDelta, setForcedDelta] = useState<"blackPink" | "blueBlack" | null>(null);
-  const [growthSectionVisible, setGrowthSectionVisible] = useState(true);
   const [lessonsSummaryOpen, setLessonsSummaryOpen] = useState(true);
+  const [growthSectionVisible, setGrowthSectionVisible] = useState(true);
   const [growthTableOpen, setGrowthTableOpen] = useState(true);
   const [annualRate, setAnnualRate] = useState(DEFAULTS.annualRate);
   const [contributions, setContributions] = useState<ContributionsByDecade>(DEFAULTS.contributions);
@@ -525,6 +525,14 @@ export default function CompoundingTool() {
     yScale: (v: any) => number;
     yMax: number;
   } | null>(null);
+  // The floating curve tooltip is rendered before the chart in this component,
+  // so on the first paint it has no pixel scales to work from and falls back to
+  // a rough guess that parks it in the top-left corner. The chart fills
+  // chartScaleRef while it renders; this tick forces one more render right
+  // after that, so the box lands next to its dot straight away instead of
+  // waiting for the first hover. Same story whenever the y-axis rescales.
+  const scalesAnnouncedRef = useRef(false);
+  const [, setScaleTick] = useState(0);
   const handleExplainerClose = useCallback(() => setExplainerOpen(false), []);
   const handleMoneyExplainerClose = useCallback(
     () => setMoneyExplainerOpen(false),
@@ -803,9 +811,12 @@ export default function CompoundingTool() {
       else if (key === "2") setShowBlack((prev) => !prev);
       else if (key === "3") setShowBlue((prev) => !prev);
       else if (key === "h") {
-        const growthPanelVisible = growthSectionVisible && growthTableOpen;
-        const nextVisible = !(growthPanelVisible || lessonsSummaryOpen);
-        setGrowthSectionVisible(nextVisible);
+        // H collapses the two panels but leaves their headings on screen, so
+        // you can still see what was hidden and click it back open.
+        const nextVisible = !(growthTableOpen || lessonsSummaryOpen);
+        // the Introduction can hide the whole right panel; H always brings it
+        // back, it only collapses the table inside it
+        setGrowthSectionVisible(true);
         setGrowthTableOpen(nextVisible);
         setLessonsSummaryOpen(nextVisible);
       }
@@ -819,7 +830,6 @@ export default function CompoundingTool() {
   }, [
     quizOpen,
     learnBlocksKeys,
-    growthSectionVisible,
     growthTableOpen,
     lessonsSummaryOpen,
   ]);
@@ -949,7 +959,7 @@ export default function CompoundingTool() {
   const summaryCards = [
     {
       key: "pink" as const,
-      label: "your savings",
+      label: "Your savings",
       value: pinkAtDisplay,
       percent: null as number | null,
       on: showSavings,
@@ -962,7 +972,7 @@ export default function CompoundingTool() {
     },
     {
       key: "black" as const,
-      label: <>your $ from<br />compounding only</>,
+      label: <>$ from compounding<br />only</>,
       value: blackData[displayIdx],
       percent: percentVsSavings(blackData[displayIdx]),
       on: showBlack,
@@ -975,7 +985,7 @@ export default function CompoundingTool() {
     },
     {
       key: "blue" as const,
-      label: <>your $ from<br />compounding+yearly investments</>,
+      label: <>$ from compounding<br />+yearly additions</>,
       value: blueData[displayIdx],
       percent: percentVsSavings(blueData[displayIdx]),
       on: showBlue,
@@ -1753,6 +1763,10 @@ export default function CompoundingTool() {
                          yScale: yAxis.scale,
                          yMax,
                        };
+                      if (!scalesAnnouncedRef.current) {
+                        scalesAnnouncedRef.current = true;
+                        queueMicrotask(() => setScaleTick((t) => t + 1));
+                      }
 
                       const leftX = xAxis.scale(chartData[0].age);
                       const selectedX = xAxis.scale(chartData[hoveredDataIndex].age);
@@ -1841,11 +1855,11 @@ export default function CompoundingTool() {
                 {/* Total Added - plain text under the decade inputs it sums up. Reset sits beside the heading above; the old
                     Savings / Compounding / Compounding+Yearly buttons that used
                     to live here were duplicates of the chart legend. */}
-                <p data-tour="green" className="mt-3 text-xs text-gray-600 leading-snug">
+                <p data-tour="green" className="mt-3 text-right text-xs text-gray-600 leading-snug">
+                  The amount of money you&rsquo;ve invested across your entire life is{" "}
                   <span className="text-base font-bold text-gray-800">
                     ${totalContributions.toLocaleString()}
-                  </span>{" "}
-                  is what you invested across your entire life
+                  </span>
                 </p>
               </div>
 
@@ -1860,11 +1874,8 @@ export default function CompoundingTool() {
                     data-tour={card.isActive ? "valuecard" : undefined}
                     className={`${card.colors.background} rounded-2xl py-2 px-4 text-center flex flex-col justify-center ${card.on ? "" : "opacity-45"}`}
                   >
-                    <p
-                      data-testid={card.isActive ? "chart-facing-age" : undefined}
-                      className={`text-xs ${card.colors.label} mb-0.5 leading-snug`}
-                    >
-                      {timelineLabel(displayIdx)}{card.key === "pink" ? "" : ":"} {card.label} is
+                    <p className={`text-xs ${card.colors.label} mb-0.5 leading-snug`}>
+                      {card.label} is
                     </p>
                     <p
                       data-testid={card.isActive ? "summary-return-percentage" : undefined}
